@@ -61,7 +61,7 @@ async function start() {
 function warn() {
   const w = [];
   if (!ME.storage) w.push("Storage is not connected to this project yet, so changes cannot be published.");
-  if (!ME.push) w.push("Push notifications are not set up yet (VAPID keys are missing).");
+  if (!ME.push) w.push("Push notifications are not set up yet. Open the Notifications tab to turn them on.");
   $("warn").innerHTML = w.map((x) => `<div class="notice bad">${esc(x)}</div>`).join("");
 }
 const snap = (o) => JSON.stringify(o);
@@ -251,7 +251,10 @@ function renderCats() {
 /* ---------- Notifications ---------- */
 function renderPush() {
   const el = $("t-push"), n = ME.subscribers;
-  el.innerHTML = `<div class="panel"><h2 style="font-size:18px">Send an offer</h2>
+  const setup = ME.push ? "" : `<div class="panel" style="margin-bottom:14px"><h2 style="font-size:18px">Turn on notifications (one time)</h2>
+<p class="mu sm" style="margin:0">Press the button to make your private push keys. Copy each one into Vercel: open the project, then Settings, then Environment Variables, add it with the name shown, then redeploy. Keep the private key secret.</p>
+<div class="row"><button class="btn" id="mkkeys">Make push keys</button></div><div id="keys"></div></div>`;
+  el.innerHTML = setup + `<div class="panel"><h2 style="font-size:18px">Send an offer</h2>
 <p style="margin:0"><b style="font-size:22px;font-variant-numeric:tabular-nums">${n == null ? "—" : n}</b> <span class="mu">${n === 1 ? "phone has" : "phones have"} offers turned on.</span></p>
 <p class="mu sm" style="margin:0">Customers turn offers on with the 🔔 button in the catalogue. On iPhone they first add the app to the home screen.</p>
 <label class="f">Title<input id="ptitle" maxlength="80" placeholder="e.g. 15% off Burnshield kits"></label>
@@ -260,6 +263,13 @@ function renderPush() {
 <div class="preview" aria-hidden="true"><img src="/icons/icon-192.png" alt=""><div><b id="pvt">Oxinab</b><span class="mu sm" id="pvb">Your message appears here.</span></div></div>
 <p class="err" id="pmsg" role="status"></p>
 <div class="row"><button class="btn pri" id="psend" ${ME.push && n ? "" : "disabled"}>Send to ${n || 0} ${n === 1 ? "phone" : "phones"}</button></div></div>`;
+  if (!ME.push) $("mkkeys").onclick = async () => {
+    try {
+      const r = await api("/api/admin/push-keys", { method: "POST" });
+      $("keys").innerHTML = Object.entries(r).map(([k, v]) => `<label class="f">${k}<input readonly value="${esc(v)}" onfocus="this.select()"></label>`).join("");
+      $("mkkeys").hidden = true;
+    } catch (e) { $("keys").textContent = "Could not make keys. Try again."; }
+  };
   const pv = () => { $("pvt").textContent = $("ptitle").value || "Oxinab"; $("pvb").textContent = $("pbody").value || "Your message appears here."; };
   $("ptitle").oninput = $("pbody").oninput = pv;
   $("psend").onclick = async () => {
