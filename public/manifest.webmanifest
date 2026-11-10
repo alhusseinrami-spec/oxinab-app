@@ -1,0 +1,20 @@
+{
+  "name": "Oxinab Medical Supplies",
+  "short_name": "Oxinab",
+  "description": "Emergency, medical and home health supplies. Browse and order on WhatsApp.",
+  "id": "/",
+  "start_url": "/?source=app",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f3f6fa",
+  "theme_color": "#001765",
+  "lang": "en",
+  "dir": "auto",
+  "categories": ["medical", "shopping", "health"],
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

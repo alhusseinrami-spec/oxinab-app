@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Oxinab Catalogue</title>
+<meta name="description" content="Oxinab medical supplies: EMS and first aid, burn care, oxygen, diagnostics and home health. Browse and order on WhatsApp.">
+<meta name="theme-color" content="#001765">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icons/favicon-48.png" type="image/png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Oxinab">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700&family=Manrope:wght@400;600;700&family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<header class="top"><div class="wrap bar">
+<a class="logo" href="#top"><img id="logo" src="/logo.jpg" alt="Oxinab" width="107" height="38"></a>
+<nav><a href="#shop">Products</a><a href="#how">How to order</a><a href="#contact">Contact</a>
+<button class="lgbtn" id="lg" onclick="setLang()" aria-label="Language"></button><button class="cartbtn" id="cb" aria-label="Open your order">Order <b id="cn">0</b></button></nav>
+</div></header>
+
+<div class="hero" id="top"><div class="wrap">
+<h1>Emergency, medical and home health supplies.</h1>
+<p>EMS and first aid, burn care, oxygen, diagnostics and home health. Find an item by name or reference, build your order, and send it on WhatsApp.</p>
+<div class="find"><input id="hq" type="search" placeholder="Search e.g. stretcher, Burnshield, oximeter" aria-label="Search products"><a href="#shop" id="hg">Search</a></div>
+<div class="facts"><span><i aria-hidden="true">🚚</i>Delivery all over Lebanon</span><span><i aria-hidden="true">💬</i>Order on WhatsApp</span><span><i aria-hidden="true">💵</i>Cash on Delivery</span></div>
+<div class="appbar"><button class="appbtn solid" id="inst" hidden>📲 <span>Install the app</span></button><button class="appbtn" id="ntf" hidden>🔔 <span id="ntft">Get offers on your phone</span></button></div>
+</div></div>
+
+<section class="shop" id="shop"><div class="wrap">
+<div class="hd"><h2>Product catalogue</h2><span class="mu sm" id="cnt"></span></div>
+<div class="tabs" id="tabs"></div><p class="mu sm" id="gi" style="margin:0 0 4px"></p><div class="chips" id="chips"></div>
+<div class="grid" id="g"></div>
+</div></section>
+
+<section class="how" id="how"><div class="wrap">
+<h2>How to order</h2>
+<ol class="steps">
+<li><b>Choose your items</b><span class="mu sm">Add products to your order. Each one has a reference number.</span></li>
+<li><b>Send your order</b><span class="mu sm">Tap send on WhatsApp, or message +961 76 878 113.</span></li>
+<li><b>Confirm delivery</b><span class="mu sm">We confirm availability, price and delivery with you.</span></li>
+<li><b>Pay on delivery</b><span class="mu sm">Pay cash when your order arrives.</span></li>
+</ol></div></section>
+
+<footer id="contact"><div class="wrap">
+<div><div class="lg">Oxi<span>nab</span></div><p>Medical supplies | Lebanon</p><p><a href="https://www.oxinab.me" target="_blank" rel="noopener">www.oxinab.me</a></p></div>
+<div><h4>Order and enquiries</h4><p>WhatsApp: <a href="https://wa.me/96176878113" target="_blank" rel="noopener" dir="ltr">+961 76 878 113</a></p></div>
+<div><h4>Delivery and payment</h4><p>Delivery all over Lebanon</p><p>Cash on Delivery</p></div>
+<p class="note">Prices are indicative; the final price is confirmed when you order. Product appearance and packaging may vary. Please quote the reference number when ordering.</p>
+</div></footer>
+
+<div class="ov" id="ov"></div>
+<aside class="dr" id="dr" aria-label="Your order">
+<div class="dh"><b>Your order</b><button id="cx" aria-label="Close">✕</button></div>
+<div class="di" id="ci"></div>
+<div class="df"><div class="tt" id="tt"></div>
+<a class="btn off" id="wa" target="_blank" rel="noopener">Send order on WhatsApp</a>
+<p class="mu sm" style="margin:10px 0 0">Pay cash on delivery. We confirm availability, price and delivery on WhatsApp.</p></div>
+</aside>
+<script src="/app.js" defer></script>
+</body></html>

@@ -1,0 +1,15 @@
+{
+  "name": "oxinab-app",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Oxinab catalogue app (installable) with an admin command center.",
+  "scripts": {
+    "check": "for f in api/*.js api/*/*.js public/*.js; do node --check $f || exit 1; done"
+  },
+  "dependencies": {
+    "@vercel/blob": "2.8.2",
+    "web-push": "3.6.7"
+  },
+  "engines": { "node": ">=20" }
+}
