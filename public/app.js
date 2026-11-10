@@ -125,11 +125,13 @@ $('inst').onclick=async()=>{if(deferred){deferred.prompt();try{await deferred.us
 /* ===== Offers by push notification ===== */
 const pushOK='serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window;
 const b64u=s=>{const p='='.repeat((4-s.length%4)%4),r=atob((s+p).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from(r,c=>c.charCodeAt(0))};
+let PK=null;
 async function ntfState(){
  const b=$('ntf');
  if(isIOS&&!standalone()&&!pushOK){b.hidden=false;return}
  if(!pushOK)return;
- b.hidden=false;
+ let key=null;try{key=(await (await fetch('/api/push/key',{cache:'no-store'})).json()).key}catch(e){}
+ PK=key;b.hidden=!key;if(!key)return;
  try{const reg=await navigator.serviceWorker.ready;const s=await reg.pushManager.getSubscription();$('ntft').textContent=t(s?'Offers are on':'Get offers on your phone');b.dataset.on=s?'1':''}catch(e){}
 }
 $('ntf').onclick=async()=>{
@@ -140,8 +142,8 @@ $('ntf').onclick=async()=>{
   if(cur&&$('ntf').dataset.on){await fetch('/api/push/subscribe',{method:'DELETE',headers:{'content-type':'application/json'},body:JSON.stringify({subscription:cur})}).catch(()=>{});await cur.unsubscribe();toast(t('Offers turned off on this phone.'));return ntfState()}
   const perm=await Notification.requestPermission();
   if(perm!=='granted'){toast(t('Notifications are blocked. Allow them in your phone settings for this site.'));return}
-  const k=await (await fetch('/api/push/key')).json();if(!k.key)throw 0;
-  const s=cur||await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u(k.key)});
+  if(!PK)throw 0;
+  const s=cur||await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u(PK)});
   const r=await fetch('/api/push/subscribe',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({subscription:s})});
   if(!r.ok)throw 0;
   toast(t('You will get Oxinab offers on this phone.'));ntfState();
