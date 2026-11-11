@@ -57,7 +57,7 @@ function all(){if(!D)return;chips();draw();drawCart()}
 
 function load(d){
  D=d;CATS=d.cats;SHOW_PRICES=!!d.set.price;WA=d.set.wa||WA;LOW=d.set.low||0;
- P=d.items.filter(i=>!i.off&&CATS[i.k]).map(i=>({id:i.id,n:i.n,a:i.a,d:i.d,ad:i.ad,pr:i.p||0,s:i.s==null?null:i.s,ci:i.k,im:i.im}));
+ P=d.items.filter(i=>!i.off&&CATS[i.k]).map(i=>({id:i.id,n:i.n,a:i.a,d:i.d,ad:i.ad,pr:i.p||0,s:i.s==null?0:i.s,ci:i.k,im:i.im}));
  byId={};P.forEach(p=>byId[p.id]=p);cnt=CATS.map((c,i)=>P.filter(p=>p.ci===i).length);
  const c0=cart;cart={};
  try{const s=Object.keys(c0).length?c0:JSON.parse(localStorage.getItem('oxc')||'{}');for(const k in s){if(byId[k]&&!out(byId[k])&&s[k]>0)cart[k]=s[k]}}catch(e){}

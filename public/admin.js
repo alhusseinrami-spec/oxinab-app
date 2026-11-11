@@ -114,7 +114,7 @@ function render() { state(); ({ products: renderProducts, cats: renderCats, push
 const live = (id) => LIVE.items.find((i) => i.id === id);
 const gi = (id) => W.items.find((i) => i.id === id);
 const low = () => W.set.low || 0;
-const noStock = (i) => i.s == null, isOut = (i) => i.s === 0, isLow = (i) => i.s != null && i.s > 0 && low() && i.s <= low();
+const noStock = (i) => i.s == null, isOut = (i) => i.s == null || i.s === 0, isLow = (i) => i.s != null && i.s > 0 && low() && i.s <= low();
 function list() {
   const q = F.q.toLowerCase();
   return W.items.filter((i) => (F.cat < 0 || i.k === F.cat)
@@ -156,10 +156,10 @@ function rows() {
   $("sum").innerHTML = `<button data-st="all"><b>${W.items.length}</b><span>Products</span></button><button data-st="on"><b>${on}</b><span>Online</span></button><button data-st="off"><b>${W.items.length - on}</b><span>Offline</span></button><button data-st="low" class="w"><b>${W.items.filter(isLow).length}</b><span>Low stock</span></button><button data-st="out" class="x"><b>${W.items.filter(isOut).length}</b><span>Out of stock</span></button><button data-st="none"><b>${W.items.filter(noStock).length}</b><span>No stock entered</span></button>`;
   $("rows").innerHTML = it.slice(F.pg * PER, F.pg * PER + PER).map((i) => {
     const c = W.cats[i.k] || { n: "?", e: "📦" }, chg = snap(live(i.id) || {}) !== snap(i);
-    const pill = isOut(i) ? '<span class="pill out">Out</span>' : isLow(i) ? '<span class="pill low">Low</span>' : noStock(i) ? '<span class="pill none" title="No stock number entered. Customers can still order it.">Not set</span>' : "";
+    const pill = noStock(i) ? '<span class="pill out" title="No stock number entered, so customers see Out of stock.">Not set</span>' : isOut(i) ? '<span class="pill out">Out</span>' : isLow(i) ? '<span class="pill low">Low</span>' : "";
     return `<tr data-id="${esc(i.id)}" class="${i.off ? "off" : ""}${chg ? " chg" : ""}"><td class="th">${i.im ? `<img src="${esc(i.im)}" alt="" loading="lazy">` : `<span>${c.e}</span>`}</td><td><span class="ref">${esc(i.id)}</span></td><td>${esc(i.n)}<small>${esc(i.a || "")}</small></td><td>${esc(c.n)}</td><td><input class="n" type="number" min="0" step="0.01" inputmode="decimal" value="${i.p || 0}" data-f="p" aria-label="Price of ${esc(i.id)}"></td><td><div class="row"><input class="n" type="number" min="0" step="1" inputmode="numeric" placeholder="—" value="${i.s == null ? "" : i.s}" data-f="s" aria-label="Stock of ${esc(i.id)}">${pill}</div></td><td><label class="sw"><input type="checkbox" data-f="on" ${i.off ? "" : "checked"} aria-label="${esc(i.id)} online"><i></i></label></td><td><button class="btn" data-edit="${esc(i.id)}">Edit</button></td></tr>`;
   }).join("") || `<tr><td colspan="8" class="mu">No products match.</td></tr>`;
-  $("pg").innerHTML = pages > 1 ? `<button class="btn" id="pp" ${F.pg < 1 ? "disabled" : ""}>‹ Previous</button><span class="mu sm">Page ${F.pg + 1} of ${pages} · ${it.length} products</span><button class="btn" id="pn" ${F.pg >= pages - 1 ? "disabled" : ""}>Next ›</button>` : `<span class="mu sm">${it.length} products · Stock left empty means it is not tracked</span>`;
+  $("pg").innerHTML = pages > 1 ? `<button class="btn" id="pp" ${F.pg < 1 ? "disabled" : ""}>‹ Previous</button><span class="mu sm">Page ${F.pg + 1} of ${pages} · ${it.length} products</span><button class="btn" id="pn" ${F.pg >= pages - 1 ? "disabled" : ""}>Next ›</button>` : `<span class="mu sm">${it.length} products · Empty stock shows as out of stock</span>`;
   if ($("pp")) { $("pp").onclick = () => { F.pg--; rows(); }; $("pn").onclick = () => { F.pg++; rows(); }; }
 }
 function nextRef(k) {
@@ -183,7 +183,7 @@ function edit(id) {
 <label class="f">Description (English)<textarea id="e_d" rows="2" maxlength="400">${esc(E.d)}</textarea></label>
 <label class="f">Description (Arabic)<textarea id="e_ad" dir="rtl" rows="2" maxlength="400">${esc(E.ad)}</textarea></label>
 <label class="f">Price ($)<input id="e_p" type="number" min="0" step="0.01" inputmode="decimal" value="${E.p || 0}"></label>
-<label class="f">Stock (leave empty to not track)<input id="e_s" type="number" min="0" step="1" inputmode="numeric" value="${E.s == null ? "" : E.s}"></label>
+<label class="f">Stock (empty shows as out of stock)<input id="e_s" type="number" min="0" step="1" inputmode="numeric" value="${E.s == null ? "" : E.s}"></label>
 </div>
 <label class="row"><span class="sw"><input id="e_on" type="checkbox" ${E.off ? "" : "checked"}><i></i></span> Online (visible in the catalogue)</label>
 <p class="err" id="emsg" role="alert"></p>
