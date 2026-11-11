@@ -115,12 +115,16 @@ let deferred=null;
 function sheet(title,lines){const o=document.createElement('div');o.className='sheet';o.innerHTML=`<div class="box" role="dialog" aria-label="${esc(t(title))}"><h3>${esc(t(title))}</h3>${lines.length>1?'<ol>'+lines.map(l=>'<li>'+esc(t(l))+'</li>').join('')+'</ol>':'<p style="margin:0">'+esc(t(lines[0]))+'</p>'}<button>${t('OK')}</button></div>`;o.onclick=e=>{if(e.target===o||e.target.tagName==='BUTTON')o.remove()};document.body.appendChild(o)}
 const IOS_STEPS=['Tap the Share button at the bottom of Safari.','Choose Add to Home Screen, then Add.','Open Oxinab from your home screen.'];
 if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(()=>{})}
+/* Android: installing from an in-app browser (WhatsApp, Instagram...) or a non-Chrome browser makes an unsigned app that Play Protect blocks. Send those visitors to Chrome, which installs it cleanly. */
+const UA=navigator.userAgent,isAndroid=/android/i.test(UA);
+const notChrome=isAndroid&&(/; wv\)|FBAN|FBAV|Instagram|WhatsApp|Line\/|Snapchat|SamsungBrowser|MiuiBrowser|HeyTapBrowser|OPR\/|EdgA|Firefox/.test(UA)||!/Chrome\//.test(UA));
+const openInChrome=()=>{location.href='intent://'+location.host+location.pathname+location.search+'#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url='+encodeURIComponent(location.href)+';end'};
 if(!standalone()){
- if(isIOS){$('inst').hidden=false}
+ if(isIOS||notChrome){$('inst').hidden=false}
  addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferred=e;$('inst').hidden=false});
 }
 addEventListener('appinstalled',()=>{$('inst').hidden=true;deferred=null});
-$('inst').onclick=async()=>{if(deferred){deferred.prompt();try{await deferred.userChoice}catch(e){}deferred=null;$('inst').hidden=true}else if(isIOS){sheet('Install Oxinab on your iPhone',IOS_STEPS)}};
+$('inst').onclick=async()=>{if(notChrome&&!deferred){openInChrome()}else if(deferred){deferred.prompt();try{await deferred.userChoice}catch(e){}deferred=null;$('inst').hidden=true}else if(isIOS){sheet('Install Oxinab on your iPhone',IOS_STEPS)}};
 
 /* ===== Offers by push notification ===== */
 const pushOK='serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window;
