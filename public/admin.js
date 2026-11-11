@@ -364,11 +364,14 @@ start().catch((e) => { if (e.status !== 401) showLogin(); });
 // Every "Send order on WhatsApp" tap in the catalogue is saved here with its order number.
 let ORD = null, OF = { q: "", st: "all", per: "all" };
 const ST = { new: "New", confirmed: "Confirmed", delivered: "Delivered", cancelled: "Cancelled" };
+let OCHK = null, OERR = false;
 async function loadOrders() {
-  try { ORD = (await api("/api/admin/orders")).orders; } catch (e) { if (e.status === 401) return; ORD = ORD || []; }
+  try { ORD = (await api("/api/admin/orders")).orders; OCHK = new Date(); OERR = false; }
+  catch (e) { OERR = true; if (e.status === 401) { if (TAB === "orders" && ORD) renderOrders(); return false; } ORD = ORD || []; }
   const n = ORD.filter((o) => o.status === "new").length;
   $("obadge").hidden = !n; $("obadge").textContent = n;
   if (TAB === "orders") renderOrders();
+  return !OERR;
 }
 const when = (iso) => new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 const usd = (v) => "$" + Number(v).toFixed(2);
@@ -380,14 +383,21 @@ function renderOrders() {
 <div class="bar"><input type="search" id="oq" placeholder="Search order number, name, phone or product" value="${esc(OF.q)}" aria-label="Search orders">
 <select id="ost" aria-label="Status"><option value="all">All statuses</option>${Object.keys(ST).map((s) => `<option value="${s}">${ST[s]}</option>`).join("")}</select>
 <select id="oper" aria-label="Period"><option value="all">Any time</option><option value="1">Today</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option></select>
-<button class="btn" id="oref">Refresh</button><button class="btn pri" id="pfnew">+ New proforma</button></div><div id="olist"></div>
+<button class="btn" id="oref">↻ Refresh</button><span class="mu sm" id="ochk">${OERR ? "⚠ Could not reach the server" : OCHK ? "Checked " + OCHK.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : ""}</span><button class="btn pri" id="pfnew">+ New proforma</button></div><div id="olist"></div>
 <p class="mu sm">An order is saved when a customer taps "Send order on WhatsApp". If they then don't send the message, mark it Cancelled.</p><div id="pflist"></div>`;
   $("ost").value = OF.st; $("oper").value = OF.per;
   $("oq").oninput = (e) => { OF.q = e.target.value; list(); };
   $("ost").onchange = (e) => { OF.st = e.target.value; list(); };
   $("oper").onchange = (e) => { OF.per = e.target.value; list(); };
   $("osum").onclick = (e) => { const b = e.target.closest("button[data-st]"); if (!b) return; OF.st = b.dataset.st; $("ost").value = OF.st; list(); };
-  $("oref").onclick = async () => { $("oref").disabled = true; await loadOrders(); };
+  $("oref").onclick = async () => {
+    const b = $("oref"), before = ORD.length; b.disabled = true; b.textContent = "Refreshing…";
+    const ok = await loadOrders();
+    if (TAB !== "orders") return;
+    if (!ok) { renderOrders(); toast("Could not refresh the orders. Check the connection and try again."); return; }
+    const d = ORD.length - before;
+    toast(d > 0 ? `${d} new order${d > 1 ? "s" : ""}.` : `Up to date: ${ORD.length} order${ORD.length === 1 ? "" : "s"}.`);
+  };
   $("olist").onchange = async (e) => {
     const sel = e.target.closest("select[data-o]"); if (!sel) return;
     const o = ORD.find((x) => x.id === sel.dataset.o), old = o.status;
