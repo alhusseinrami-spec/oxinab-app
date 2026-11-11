@@ -127,10 +127,26 @@ function slideTo(i){const tr=$('ptrack'),n=SL.length;if(!n)return;i=(i+n)%n;tr.s
 /* Order number and customer details */
 try{const u=JSON.parse(localStorage.getItem('oxu')||'{}');$('u_n').value=u.name||'';$('u_p').value=u.phone||'';$('u_a').value=u.addr||''}catch(e){}
 $('cu').addEventListener('input',()=>{try{localStorage.setItem('oxu',JSON.stringify(who()))}catch(e){}drawCart()});
+/* Each order is kept in an outbox on the phone until the server confirms it. Opening WhatsApp can pause the app
+   before a normal request leaves, so the order goes out as a beacon right away and is re-sent when the app is back. */
+const OBX='oxq';
+const obx=()=>{try{return JSON.parse(localStorage.getItem(OBX)||'[]')}catch(e){return []}};
+const obxSet=a=>{try{localStorage.setItem(OBX,JSON.stringify(a.slice(-20)))}catch(e){}};
+let flushing=false;
+async function flushOrders(minAge){
+ if(flushing||!navigator.onLine&&navigator.onLine!==undefined)return;flushing=true;
+ try{for(const o of obx()){
+  if(Date.now()-o.t<(minAge||0))continue;
+  try{const r=await fetch('/api/order',{method:'POST',headers:{'content-type':'application/json'},body:o.body});
+   if(r.ok||(r.status>=400&&r.status<500&&r.status!==429))obxSet(obx().filter(x=>x.id!==o.id));}catch(e){break}
+ }}finally{flushing=false}
+}
 $('wa').addEventListener('click',()=>{
  const ks=Object.keys(cart);if(!ks.length)return;
  const body=JSON.stringify({id:OID,lang:LANG,...who(),items:ks.map(k=>({id:k,q:cart[k]}))});
- try{fetch('/api/order',{method:'POST',headers:{'content-type':'application/json'},body,keepalive:true}).catch(()=>{})}catch(e){}
+ obxSet([...obx().filter(x=>x.id!==OID),{id:OID,t:Date.now(),body}]);
+ let sent=false;try{sent=navigator.sendBeacon&&navigator.sendBeacon('/api/order',new Blob([body],{type:'text/plain;charset=UTF-8'}))}catch(e){}
+ if(!sent)flushOrders(0);
  setTimeout(()=>{OID=newOID();drawCart()},800); // the next order gets its own number
 });
 function ch(id,d){const p=byId[id];if(!p)return;let n=Math.max(0,(cart[id]||0)+d);if(p.s!=null)n=Math.min(n,p.s);cart[id]=n;if(!cart[id])delete cart[id];save();draw();drawCart()}
@@ -157,7 +173,8 @@ async function refresh(){
 try{const s=localStorage.getItem('oxd');if(s)load(JSON.parse(s))}catch(e){}
 const hc=()=>{const m=location.hash.match(/^#c(\d+)$/);if(m){cat=+m[1];if(D){chips();draw()}setTimeout(()=>$('shop').scrollIntoView(),50)}};hc();addEventListener('hashchange',hc);
 stat();refresh();
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')refresh()});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){refresh();flushOrders(3000)}});
+addEventListener('online',()=>flushOrders(0));setTimeout(()=>flushOrders(3000),2000);
 
 /* ===== Install as an app ===== */
 const standalone=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;

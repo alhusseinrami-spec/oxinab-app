@@ -108,6 +108,7 @@ document.querySelector("nav.tabs").onclick = (e) => {
   document.querySelectorAll("nav.tabs button").forEach((x) => x.setAttribute("aria-selected", x === b ? "true" : "false"));
   ["products", "orders", "banners", "cats", "push", "settings"].forEach((t) => ($("t-" + t).hidden = t !== TAB));
   render();
+  if (TAB === "orders") loadOrders();
 };
 function render() { state(); ({ products: renderProducts, orders: renderOrders, banners: renderBanners, cats: renderCats, push: renderPush, settings: renderSettings })[TAB](); }
 

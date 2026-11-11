@@ -46,5 +46,6 @@ export async function loadOrders(limit = 300) {
       } catch { return null; }
     })));
   }
-  return out.filter(Boolean);
+  const seen = new Set();
+  return out.filter((o) => o && !seen.has(o.id) && seen.add(o.id));
 }
