@@ -114,11 +114,11 @@ function render() { state(); ({ products: renderProducts, cats: renderCats, push
 const live = (id) => LIVE.items.find((i) => i.id === id);
 const gi = (id) => W.items.find((i) => i.id === id);
 const low = () => W.set.low || 0;
-const isOut = (i) => i.s === 0, isLow = (i) => i.s != null && i.s > 0 && low() && i.s <= low();
+const noStock = (i) => i.s == null, isOut = (i) => i.s === 0, isLow = (i) => i.s != null && i.s > 0 && low() && i.s <= low();
 function list() {
   const q = F.q.toLowerCase();
   return W.items.filter((i) => (F.cat < 0 || i.k === F.cat)
-    && (F.st === "all" || (F.st === "on" && !i.off) || (F.st === "off" && i.off) || (F.st === "out" && isOut(i)) || (F.st === "low" && isLow(i)))
+    && (F.st === "all" || (F.st === "on" && !i.off) || (F.st === "off" && i.off) || (F.st === "out" && isOut(i)) || (F.st === "low" && isLow(i)) || (F.st === "none" && noStock(i)))
     && (i.id + " " + i.n + " " + (i.a || "")).toLowerCase().includes(q));
 }
 function renderProducts() {
@@ -127,7 +127,7 @@ function renderProducts() {
     el.innerHTML = `<div class="sum" id="sum"></div>
 <div class="bar"><input id="fq" type="search" placeholder="Search name or ref" aria-label="Search products">
 <select id="fc" aria-label="Category"></select>
-<select id="fs" aria-label="Status"><option value="all">All products</option><option value="on">Online</option><option value="off">Offline</option><option value="out">Out of stock</option><option value="low">Low stock</option></select>
+<select id="fs" aria-label="Status"><option value="all">All products</option><option value="on">Online</option><option value="off">Offline</option><option value="out">Out of stock</option><option value="low">Low stock</option><option value="none">No stock entered</option></select>
 <button class="btn pri" id="new">+ New product</button></div>
 <div class="tw"><table><thead><tr><th></th><th>Ref</th><th>Name</th><th>Category</th><th>Price ($)</th><th>Stock</th><th>Online</th><th></th></tr></thead><tbody id="rows"></tbody></table></div>
 <div class="pg" id="pg"></div>`;
@@ -153,10 +153,10 @@ function rows() {
   const it = list(), pages = Math.max(1, Math.ceil(it.length / PER));
   F.pg = Math.min(F.pg, pages - 1);
   const on = W.items.filter((i) => !i.off).length;
-  $("sum").innerHTML = `<button data-st="all"><b>${W.items.length}</b><span>Products</span></button><button data-st="on"><b>${on}</b><span>Online</span></button><button data-st="off"><b>${W.items.length - on}</b><span>Offline</span></button><button data-st="low" class="w"><b>${W.items.filter(isLow).length}</b><span>Low stock</span></button><button data-st="out" class="x"><b>${W.items.filter(isOut).length}</b><span>Out of stock</span></button>`;
+  $("sum").innerHTML = `<button data-st="all"><b>${W.items.length}</b><span>Products</span></button><button data-st="on"><b>${on}</b><span>Online</span></button><button data-st="off"><b>${W.items.length - on}</b><span>Offline</span></button><button data-st="low" class="w"><b>${W.items.filter(isLow).length}</b><span>Low stock</span></button><button data-st="out" class="x"><b>${W.items.filter(isOut).length}</b><span>Out of stock</span></button><button data-st="none"><b>${W.items.filter(noStock).length}</b><span>No stock entered</span></button>`;
   $("rows").innerHTML = it.slice(F.pg * PER, F.pg * PER + PER).map((i) => {
     const c = W.cats[i.k] || { n: "?", e: "📦" }, chg = snap(live(i.id) || {}) !== snap(i);
-    const pill = isOut(i) ? '<span class="pill out">Out</span>' : isLow(i) ? '<span class="pill low">Low</span>' : "";
+    const pill = isOut(i) ? '<span class="pill out">Out</span>' : isLow(i) ? '<span class="pill low">Low</span>' : noStock(i) ? '<span class="pill none" title="No stock number entered. Customers can still order it.">Not set</span>' : "";
     return `<tr data-id="${esc(i.id)}" class="${i.off ? "off" : ""}${chg ? " chg" : ""}"><td class="th">${i.im ? `<img src="${esc(i.im)}" alt="" loading="lazy">` : `<span>${c.e}</span>`}</td><td><span class="ref">${esc(i.id)}</span></td><td>${esc(i.n)}<small>${esc(i.a || "")}</small></td><td>${esc(c.n)}</td><td><input class="n" type="number" min="0" step="0.01" inputmode="decimal" value="${i.p || 0}" data-f="p" aria-label="Price of ${esc(i.id)}"></td><td><div class="row"><input class="n" type="number" min="0" step="1" inputmode="numeric" placeholder="—" value="${i.s == null ? "" : i.s}" data-f="s" aria-label="Stock of ${esc(i.id)}">${pill}</div></td><td><label class="sw"><input type="checkbox" data-f="on" ${i.off ? "" : "checked"} aria-label="${esc(i.id)} online"><i></i></label></td><td><button class="btn" data-edit="${esc(i.id)}">Edit</button></td></tr>`;
   }).join("") || `<tr><td colspan="8" class="mu">No products match.</td></tr>`;
   $("pg").innerHTML = pages > 1 ? `<button class="btn" id="pp" ${F.pg < 1 ? "disabled" : ""}>‹ Previous</button><span class="mu sm">Page ${F.pg + 1} of ${pages} · ${it.length} products</span><button class="btn" id="pn" ${F.pg >= pages - 1 ? "disabled" : ""}>Next ›</button>` : `<span class="mu sm">${it.length} products · Stock left empty means it is not tracked</span>`;
