@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Oxinab</title>
+<meta name="description" content="Oxinab emergency, medical and home health supplies. Open the catalogue and install the app.">
+<meta property="og:title" content="Oxinab Medical Supplies">
+<meta property="og:description" content="Browse the catalogue and order on WhatsApp.">
+<meta property="og:image" content="/icons/icon-512.png">
+<meta name="theme-color" content="#001765">
+<link rel="icon" href="/icons/favicon-48.png" type="image/png">
+<style>
+/* Share link: gets visitors out of chat apps' built-in browsers and into Chrome or Safari, where the app installs properly. */
+:root{--bg:#f3f6fa;--card:#fff;--tx:#0c1a3f;--mu:#56658a;--bd:#dbe3f0;--prd:#001765;--soft:#e5f2fb}
+@media(prefers-color-scheme:dark){:root{--bg:#070f2a;--card:#0e1a3d;--tx:#e6edf8;--mu:#97a6c6;--bd:#1f2f5c;--prd:#3fb1ec;--soft:#132a55}}
+*{box-sizing:border-box}[hidden]{display:none!important}
+body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px 16px;background:var(--bg);color:var(--tx);font:400 16px/1.5 system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif}
+main{background:var(--card);border:1px solid var(--bd);border-radius:20px;padding:24px;width:min(420px,100%);display:flex;flex-direction:column;gap:14px;text-align:center}
+img{height:52px;align-self:center;background:#fff;border-radius:10px;padding:4px 10px}
+h1{font-size:21px;margin:0}
+p{margin:0;color:var(--mu)}
+.btn{display:block;border:0;border-radius:12px;padding:13px 16px;font:700 16px system-ui,sans-serif;background:var(--prd);color:#fff;text-decoration:none;cursor:pointer}
+.btn.alt{background:var(--soft);color:var(--tx)}
+ol{text-align:start;margin:0;padding-inline-start:22px;display:flex;flex-direction:column;gap:6px}
+.ar{direction:rtl;font-family:Tahoma,system-ui,sans-serif}
+hr{border:0;border-top:1px solid var(--bd);margin:4px 0}
+</style>
+</head><body>
+<main>
+  <img src="/logo.jpg" alt="Oxinab">
+  <div id="wait"><h1>Opening Oxinab…</h1><p class="ar">جارٍ فتح أوكسيناب…</p></div>
+
+  <div id="android" hidden>
+    <h1>Open in Chrome to install</h1>
+    <p>This chat app's browser can't install apps safely.</p>
+    <p class="ar">متصفح تطبيق الدردشة لا يثبّت التطبيقات بأمان. افتح الرابط في كروم.</p>
+    <a class="btn" id="chrome" href="#">Open in Chrome · افتح في كروم</a>
+    <a class="btn alt" href="/">Just browse here · تصفّح هنا</a>
+  </div>
+
+  <div id="ios" hidden>
+    <h1>Open in Safari to install</h1>
+    <p>iPhone only installs apps from Safari.</p>
+    <p class="ar">الآيفون يثبّت التطبيقات من سفاري فقط.</p>
+    <a class="btn" id="safari" href="#">Open in Safari · افتح في سفاري</a>
+    <hr>
+    <p style="font-size:14px">If nothing happens · إذا لم يحدث شيء:</p>
+    <ol style="font-size:14px">
+      <li>Tap <b>⋯</b> or the <b>share</b> button at the top or bottom of this screen.</li>
+      <li>Choose <b>Open in Safari</b> (or <b>Open in browser</b>).</li>
+    </ol>
+    <ol class="ar" style="font-size:14px">
+      <li>اضغط على <b>⋯</b> أو زر <b>المشاركة</b> أعلى أو أسفل الشاشة.</li>
+      <li>اختر <b>فتح في سفاري</b>.</li>
+    </ol>
+    <a class="btn alt" href="/">Just browse here · تصفّح هنا</a>
+  </div>
+</main>
+<script>
+(function(){
+  var ua = navigator.userAgent;
+  var target = location.origin + "/?source=go";
+  var android = /android/i.test(ua);
+  var ios = /iphone|ipad|ipod/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  // Built-in browsers of chat and social apps, plus Android browsers that can't make a signed app.
+  var inApp = /; wv\)|FBAN|FBAV|FB_IAB|Instagram|WhatsApp|Line\/|Snapchat|TikTok|musical_ly|Telegram|GSA\/|MicroMessenger|LinkedInApp|Twitter/i.test(ua);
+  var otherAndroid = android && (/SamsungBrowser|MiuiBrowser|HeyTapBrowser|OPR\/|EdgA|Firefox|UCBrowser/.test(ua) || !/Chrome\//.test(ua));
+  var iosSafari = ios && /Safari\//.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS/.test(ua) && !inApp;
+  var show = function(id){ document.getElementById("wait").hidden = true; document.getElementById(id).hidden = false; };
+
+  if (android && (inApp || otherAndroid)) {
+    var intent = "intent://" + location.host + "/?source=go#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=" + encodeURIComponent(target) + ";end";
+    document.getElementById("chrome").href = intent;
+    show("android");
+    location.href = intent; // jumps straight to Chrome where the chat app allows it
+  } else if (ios && !iosSafari) {
+    var sf = "x-safari-" + target; // iOS 17+: asks the chat app to hand the link to Safari
+    document.getElementById("safari").href = sf;
+    show("ios");
+    location.href = sf;
+  } else {
+    location.replace(target);
+  }
+})();
+</script>
+</body></html>
