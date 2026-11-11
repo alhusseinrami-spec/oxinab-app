@@ -10,12 +10,12 @@ export const ORDER_ID = /^[A-Z0-9]{6}$/;
 const key = () => createHash("sha256").update("oxinab-orders:" + (process.env.ORDERS_KEY || process.env.BLOB_READ_WRITE_TOKEN || "")).digest();
 const ts = () => String(Date.now()).padStart(15, "0");
 
-function seal(obj) {
+export function seal(obj) {
   const iv = randomBytes(12), c = createCipheriv("aes-256-gcm", key(), iv);
   const data = Buffer.concat([c.update(JSON.stringify(obj), "utf8"), c.final()]);
   return JSON.stringify({ v: 1, iv: iv.toString("base64"), tag: c.getAuthTag().toString("base64"), data: data.toString("base64") });
 }
-function open(text) {
+export function open(text) {
   const o = JSON.parse(text), d = createDecipheriv("aes-256-gcm", key(), Buffer.from(o.iv, "base64"));
   d.setAuthTag(Buffer.from(o.tag, "base64"));
   return JSON.parse(Buffer.concat([d.update(Buffer.from(o.data, "base64")), d.final()]).toString("utf8"));

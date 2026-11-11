@@ -349,7 +349,8 @@ function renderSettings() {
 <label class="f">WhatsApp number for orders<input id="swa" inputmode="tel" value="${esc(s.wa)}" placeholder="96176878113"></label>
 <p class="mu sm" style="margin:0">Country code and number, digits only. Orders from the basket are sent to this number.</p>
 <label class="f">Low-stock warning at<input id="slow" type="number" min="0" step="1" value="${s.low || 0}"></label>
-<p class="mu sm" style="margin:0">When stock is at or below this number the catalogue shows "Only N left". 0 turns the warning off.</p></div>`;
+<p class="mu sm" style="margin:0">When stock is at or below this number the catalogue shows "Only N left". 0 turns the warning off.</p></div><div id="pfcfg" style="margin-top:14px"></div>`;
+  if (typeof pfSettings === "function") pfSettings();
   $("sprice").onchange = (e) => { s.price = e.target.checked ? 1 : 0; state(); };
   $("swa").oninput = (e) => { s.wa = e.target.value.replace(/\D/g, "").replace(/^00/, ""); state(); };
   $("slow").oninput = (e) => { s.low = Math.max(0, Math.floor(+e.target.value) || 0); state(); };
@@ -377,8 +378,8 @@ function renderOrders() {
 <div class="bar"><input type="search" id="oq" placeholder="Search order number, name, phone or product" value="${esc(OF.q)}" aria-label="Search orders">
 <select id="ost" aria-label="Status"><option value="all">All statuses</option>${Object.keys(ST).map((s) => `<option value="${s}">${ST[s]}</option>`).join("")}</select>
 <select id="oper" aria-label="Period"><option value="all">Any time</option><option value="1">Today</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option></select>
-<button class="btn" id="oref">Refresh</button></div><div id="olist"></div>
-<p class="mu sm">An order is saved when a customer taps "Send order on WhatsApp". If they then don't send the message, mark it Cancelled.</p>`;
+<button class="btn" id="oref">Refresh</button><button class="btn pri" id="pfnew">+ New proforma</button></div><div id="olist"></div>
+<p class="mu sm">An order is saved when a customer taps "Send order on WhatsApp". If they then don't send the message, mark it Cancelled.</p><div id="pflist"></div>`;
   $("ost").value = OF.st; $("oper").value = OF.per;
   $("oq").oninput = (e) => { OF.q = e.target.value; list(); };
   $("ost").onchange = (e) => { OF.st = e.target.value; list(); };
@@ -394,7 +395,7 @@ function renderOrders() {
     $("obadge").hidden = !cnt("new"); $("obadge").textContent = cnt("new");
     renderOrders();
   };
-  list();
+  list(); if (typeof pfOrdersHook === "function") pfOrdersHook();
   function list() {
     const q = OF.q.trim().toLowerCase(), since = OF.per === "all" ? 0 : OF.per === "1" ? new Date().setHours(0, 0, 0, 0) : Date.now() - OF.per * 864e5;
     const it = ORD.filter((o) => (OF.st === "all" || o.status === OF.st) && new Date(o.at) >= since
@@ -404,7 +405,7 @@ function renderOrders() {
       return `<article class="ord ${o.status}"><div><h3>Order #${esc(o.id)} <span class="st-${o.status} sm">● ${ST[o.status]}</span></h3>
 <ul>${o.items.map((i) => `<li>${i.q} × ${esc(i.n)} <span class="mu sm">${esc(i.id)}${i.p ? " · " + usd(i.p) : ""}</span></li>`).join("")}</ul></div>
 <div style="text-align:end"><b style="font-size:17px">${o.total != null ? usd(o.total) : '<span class="mu sm">No total (prices missing)</span>'}</b><br>
-<select data-o="${esc(o.id)}" aria-label="Status of order ${esc(o.id)}" style="margin-top:6px">${Object.keys(ST).map((s) => `<option value="${s}" ${s === o.status ? "selected" : ""}>${ST[s]}</option>`).join("")}</select></div>
+<select data-o="${esc(o.id)}" aria-label="Status of order ${esc(o.id)}" style="margin-top:6px">${Object.keys(ST).map((s) => `<option value="${s}" ${s === o.status ? "selected" : ""}>${ST[s]}</option>`).join("")}</select><br><button class="btn" data-pf="${esc(o.id)}" style="margin-top:6px">📄 Proforma</button></div>
 <div class="meta"><span>🕒 ${when(o.at)}</span><span>👤 ${esc(o.name || "No name given")}</span>${o.phone ? `<span>📞 <a href="https://wa.me/${esc(tel)}" target="_blank" rel="noopener">${esc(o.phone)}</a></span>` : ""}${o.addr ? `<span>📍 ${esc(o.addr)}</span>` : ""}<span>${o.lang === "ar" ? "Arabic" : "English"}</span></div></article>`;
     }).join("") : `<div class="panel"><p class="mu" style="margin:0">${ORD.length ? "No orders match these filters." : "No orders yet. They appear here when customers send an order from the catalogue."}</p></div>`;
   }
