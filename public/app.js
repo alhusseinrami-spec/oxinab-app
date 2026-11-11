@@ -18,7 +18,7 @@ const TR={"Language":"اللغة","Updated":"آخر تحديث","Products":"ال
 "No match. Message us on WhatsApp and we will check availability for you.":"لا توجد نتائج. راسلنا على واتساب وسنتحقق من التوفر لك.",
 "Your order is empty. Add products from the catalogue.":"طلبك فارغ. أضف منتجات من الكتالوج.","Estimated total":"المجموع التقريبي","Items":"عدد القطع",
 "Remove one":"إزالة واحدة","Add one":"إضافة واحدة","Open your order":"افتح طلبك","Close":"إغلاق","Search products":"ابحث عن منتج",
-"Oxinab Catalogue":"كتالوج أوكسيناب"};
+"Oxinab Catalogue":"كتالوج أوكسيناب","Shop now":"تسوّق الآن","Brands and offers":"العلامات التجارية والعروض","Previous slide":"الشريحة السابقة","Next slide":"الشريحة التالية","Slide":"الشريحة","of":"من"};
 Object.assign(TR,{"Out of stock":"غير متوفر","left":"متبقٍ فقط","Only":"","Install the app":"ثبّت التطبيق","Get offers on your phone":"احصل على العروض على هاتفك","Offers are on":"العروض مفعّلة",
 "Install Oxinab on your iPhone":"ثبّت أوكسيناب على الآيفون","Tap the Share button at the bottom of Safari.":"اضغط على زر المشاركة أسفل Safari.","Choose Add to Home Screen, then Add.":"اختر «إضافة إلى الشاشة الرئيسية» ثم «إضافة».","Open Oxinab from your home screen.":"افتح أوكسيناب من الشاشة الرئيسية.","OK":"حسناً",
 "To get offers on iPhone, first add Oxinab to your home screen, then open it from there.":"لتلقي العروض على الآيفون، أضف أوكسيناب أولاً إلى الشاشة الرئيسية ثم افتحه من هناك.",
@@ -44,7 +44,7 @@ function stat(){
  const h=document.documentElement;h.lang=LANG;h.dir=LANG==='ar'?'rtl':'ltr';
  const w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);let n;
  while(n=w.nextNode()){
-  if(n.parentElement.closest('script,style,#g,#chips,#tabs,#ci,#tt,#cnt,#gi,#cn,#upd,.sheet,.toast'))continue;
+  if(n.parentElement.closest('script,style,#ptrack,#pdots,#g,#chips,#tabs,#ci,#tt,#cnt,#gi,#cn,#upd,.sheet,.toast'))continue;
   if(n._o===undefined)n._o=n.nodeValue;
   const k=n._o.trim();if(!k)continue;
   n.nodeValue=LANG==='ar'&&TR[k]?n._o.replace(k,t(k)):n._o;
@@ -56,7 +56,7 @@ function stat(){
  document.title=t(TITLE);updTxt();$('lg').textContent=LANG==='ar'?'EN':'عربي';
 }
 function setLang(){LANG=LANG==='ar'?'en':'ar';try{localStorage.setItem('oxl',LANG)}catch(e){}stat();all()}
-function all(){if(!D)return;chips();draw();drawCart()}
+function all(){if(!D)return;promo();chips();draw();drawCart()}
 
 function load(d){
  D=d;CATS=d.cats;SHOW_PRICES=!!d.set.price;WA=d.set.wa||WA;LOW=d.set.low||0;
@@ -87,6 +87,43 @@ function drawCart(){
  const msg=head+(LANG==='ar'?'مرحباً أوكسيناب، أود طلب:\n'+ks.map(k=>'• '+k+' - '+(byId[k].a||byId[k].n)+' × '+cart[k]).join('\n')+(pr?'\nالمجموع التقريبي: '+money(tot()):'')+'\nالدفع: عند الاستلام':'Hello Oxinab, I would like to order:\n'+ks.map(k=>'• '+k+' - '+byId[k].n+' x '+cart[k]).join('\n')+(pr?'\nEstimated total: '+money(tot()):'')+'\nPayment: Cash on Delivery')+tail;
  a.href=ks.length?'https://wa.me/'+WA+'?text='+encodeURIComponent(msg):'#';
 }
+/* ===== Brands and offers slider (slides are managed in the command center) ===== */
+let SL=[],SI=0,SLK='';
+const RM=matchMedia('(prefers-reduced-motion: reduce)');
+function promo(){
+ SL=(D.banners||[]).filter(b=>b.on&&(b.im||b.t));
+ const box=$('promo'),tr=$('ptrack'),k=JSON.stringify(SL)+LANG;
+ box.hidden=!SL.length;if(!SL.length||k===SLK)return;SLK=k;
+ const L=(b,f)=>LANG==='ar'&&b[f+'a']?b[f+'a']:b[f];
+ tr.innerHTML=SL.map((b,i)=>{const tx=L(b,'t'),sb=L(b,'s'),lb=L(b,'l');
+  return `<${b.go?'a href="#shop"':'div'} class="slide${tx?'':' bare'}" data-i="${i}" style="--bg:${esc(b.bg||'#001765')}" dir="${LANG==='ar'?'rtl':'ltr'}" role="group" aria-roledescription="slide" aria-label="${t('Slide')} ${i+1} ${t('of')} ${SL.length}${tx?': '+esc(tx):''}">`
+  +(tx||sb?`<div class="sx">${lb?`<span class="sl">${esc(lb)}</span>`:''}${tx?`<h2>${esc(tx)}</h2>`:''}${sb?`<p>${esc(sb)}</p>`:''}${b.go?`<span class="scta">${t('Shop now')} <i aria-hidden="true">${LANG==='ar'?'←':'→'}</i></span>`:''}</div>`:'')
+  +(b.im?`<div class="si"><img src="${esc(b.im)}" alt="" ${i?'loading="lazy"':''} decoding="async"></div>`:'')
+  +`</${b.go?'a':'div'}>`}).join('');
+ tr.querySelectorAll('.si img').forEach(im=>{const w=()=>{if(im.naturalWidth/im.naturalHeight>=1.8)im.closest('.slide').classList.add('wide')};im.complete?w():im.onload=w});
+ $('pdots').innerHTML=SL.length>1?SL.map((b,i)=>`<button data-i="${i}" aria-label="${t('Slide')} ${i+1}"><i></i></button>`).join(''):'';
+ box.classList.toggle('one',SL.length<2);
+ SI=Math.min(SI,SL.length-1);tr.scrollLeft=SI*tr.clientWidth;mark(SI);
+}
+function mark(i){SI=i;$('ptrack').querySelectorAll('.slide').forEach((s,j)=>{s.classList.toggle('on',j===i);s.inert=j!==i});
+ $('pdots').querySelectorAll('button').forEach((d,j)=>{d.classList.toggle('on',j===i);d.setAttribute('aria-current',j===i?'true':'false');const f=d.firstChild;f.style.animation='none';void f.offsetWidth;f.style.animation=''})}
+function slideTo(i){const tr=$('ptrack'),n=SL.length;if(!n)return;i=(i+n)%n;tr.scrollTo({left:i*tr.clientWidth,behavior:RM.matches?'auto':'smooth'});mark(i)}
+{const tr=$('ptrack'),box=$('promo');let st;
+ tr.addEventListener('scroll',()=>{clearTimeout(st);st=setTimeout(()=>{const i=Math.round(tr.scrollLeft/tr.clientWidth);if(i!==SI&&SL[i])mark(i)},90)},{passive:true});
+ $('pdots').onclick=e=>{const b=e.target.closest('button');if(b)slideTo(+b.dataset.i)};
+ box.querySelectorAll('.pnav').forEach(b=>b.onclick=()=>slideTo(SI+ +b.dataset.d));
+ // The active dot fills over a few seconds; when it is full the next slide comes in. Touching or hovering pauses it.
+ $('pdots').addEventListener('animationend',e=>{if(e.target.parentElement.classList.contains('on'))slideTo(SI+1)});
+ const hold=v=>box.classList.toggle('hold',v);let ht;
+ box.addEventListener('pointerenter',e=>{if(e.pointerType==='mouse')hold(true)});box.addEventListener('pointerleave',e=>{if(e.pointerType==='mouse')hold(false)});
+ box.addEventListener('touchstart',()=>{hold(true);clearTimeout(ht)},{passive:true});box.addEventListener('touchend',()=>{clearTimeout(ht);ht=setTimeout(()=>hold(false),4000)},{passive:true});
+ box.addEventListener('focusin',()=>hold(true));box.addEventListener('focusout',()=>hold(false));
+ addEventListener('resize',()=>{tr.scrollLeft=SI*tr.clientWidth});
+ tr.onclick=e=>{const a=e.target.closest('a.slide');if(!a)return;const b=SL[+a.dataset.i];if(!b||!b.go)return;e.preventDefault();
+  const m=/^c(\d+)$/.exec(b.go);if(m&&CATS[+m[1]]){q='';$('hq').value='';cat=+m[1];chips();draw()}else if(b.go.startsWith('q:'))search(b.go.slice(2));
+  $('shop').scrollIntoView({behavior:RM.matches?'auto':'smooth'})};
+}
+
 /* Order number and customer details */
 try{const u=JSON.parse(localStorage.getItem('oxu')||'{}');$('u_n').value=u.name||'';$('u_p').value=u.phone||'';$('u_a').value=u.addr||''}catch(e){}
 $('cu').addEventListener('input',()=>{try{localStorage.setItem('oxu',JSON.stringify(who()))}catch(e){}drawCart()});

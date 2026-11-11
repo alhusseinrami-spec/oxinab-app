@@ -3,6 +3,16 @@ import { createHmac, createHash, timingSafeEqual, randomBytes } from "node:crypt
 import { put, list, del } from "@vercel/blob";
 import SEED from "./_seed.js";
 
+/* ---------- Home page slides (brands and offers) ----------
+   Shown until an admin publishes their own. Each slide: im image, t/ta title EN/AR, s/sa line EN/AR, l/la small label EN/AR,
+   go where a tap leads ("" nothing, "c3" a category, "q:word" a search), bg colour, on shown or hidden. */
+export const DEFAULT_BANNERS = [
+  { im: "/img/p31.jpg", l: "Brand", la: "علامة تجارية", t: "Burnshield burn care", ta: "Burnshield لعلاج الحروق", s: "Hydrogel gels, sprays and dressings that cool and cover burns fast.", sa: "جل وبخاخات وضمادات هيدروجيل تبرّد الحروق وتغطيها بسرعة.", go: "q:Burnshield", bg: "#c62828", on: 1 },
+  { im: "/img/p82.jpg", l: "Brand", la: "علامة تجارية", t: "Biosynex home health", ta: "Biosynex للصحة المنزلية", s: "Blood pressure monitors, thermometers, oximeters and self-tests.", sa: "أجهزة ضغط، موازين حرارة، أجهزة أكسجة واختبارات ذاتية.", go: "q:Biosynex", bg: "#0d47a1", on: 1 },
+  { im: "/img/p48.jpg", l: "New", la: "جديد", t: "BoonFeet custom insoles", ta: "نعال BoonFeet الطبية", s: "Five sizes, moulded to your foot for all-day comfort.", sa: "خمسة مقاسات، تتشكّل حسب قدمك لراحة طوال اليوم.", go: "q:BoonFeet", bg: "#00897b", on: 1 },
+];
+if (!Array.isArray(SEED.banners)) SEED.banners = DEFAULT_BANNERS;
+
 export const json = (data, status = 200, headers = {}) =>
   new Response(JSON.stringify(data), {
     status,
@@ -79,7 +89,8 @@ export async function loadCatalog() {
   if (!r.ok) throw new Error("catalog_fetch_" + r.status);
   const data = await r.json();
   // A newer product list shipped in the code replaces the saved one once; the shop's settings are kept.
-  if ((data.seedv || 1) < (SEED.seedv || 1)) return { data: { ...SEED, set: { ...SEED.set, ...data.set } }, version: all[0].pathname };
+  if (!Array.isArray(data.banners)) data.banners = DEFAULT_BANNERS;
+  if ((data.seedv || 1) < (SEED.seedv || 1)) return { data: { ...SEED, set: { ...SEED.set, ...data.set }, banners: data.banners }, version: all[0].pathname };
   return { data, version: all[0].pathname };
 }
 export async function saveCatalog(data) {
@@ -122,6 +133,19 @@ export function cleanCatalog(input) {
       s, off: i.off ? 1 : 0, im,
     };
   });
+  const banners = (Array.isArray(input.banners) ? input.banners : DEFAULT_BANNERS).slice(0, 12).map((b, n) => {
+    const im = str(b.im, 300);
+    if (!okImg(im)) throw new Error("bad_slide_image:" + (n + 1));
+    let go = str(b.go, 62);
+    const m = /^c(\d{1,2})$/.exec(go);
+    if (m ? +m[1] >= cats.length : !/^q:.+/.test(go)) go = "";
+    return {
+      im, go,
+      t: str(b.t, 80), ta: str(b.ta, 80), s: str(b.s, 160), sa: str(b.sa, 160), l: str(b.l, 24), la: str(b.la, 24),
+      bg: /^#[0-9a-f]{6}$/i.test(b.bg) ? b.bg : "#001765",
+      on: b.on ? 1 : 0,
+    };
+  });
   const st = input.set || {};
   const wa = String(st.wa || "").replace(/\D/g, "").replace(/^00/, "");
   return {
@@ -133,6 +157,6 @@ export function cleanCatalog(input) {
       wa: wa.length >= 8 && wa.length <= 15 ? wa : "96176878113",
       upd: new Date().toISOString(),
     },
-    cats, items,
+    cats, items, banners,
   };
 }

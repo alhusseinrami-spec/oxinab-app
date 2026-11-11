@@ -72,6 +72,7 @@ function changes() {
   W.items.forEach((i) => { seen.add(i.id); if (a.get(i.id) !== snap(i)) n++; });
   a.forEach((v, k) => { if (!seen.has(k)) n++; });
   if (snap(W.cats) !== snap(LIVE.cats)) n++;
+  if (snap(W.banners || []) !== snap(LIVE.banners || [])) n++;
   const s1 = { ...W.set, upd: 0 }, s2 = { ...LIVE.set, upd: 0 };
   if (snap(s1) !== snap(s2)) n++;
   return n;
@@ -105,10 +106,10 @@ document.querySelector("nav.tabs").onclick = (e) => {
   const b = e.target.closest("button[data-t]"); if (!b) return;
   TAB = b.dataset.t;
   document.querySelectorAll("nav.tabs button").forEach((x) => x.setAttribute("aria-selected", x === b ? "true" : "false"));
-  ["products", "orders", "cats", "push", "settings"].forEach((t) => ($("t-" + t).hidden = t !== TAB));
+  ["products", "orders", "banners", "cats", "push", "settings"].forEach((t) => ($("t-" + t).hidden = t !== TAB));
   render();
 };
-function render() { state(); ({ products: renderProducts, orders: renderOrders, cats: renderCats, push: renderPush, settings: renderSettings })[TAB](); }
+function render() { state(); ({ products: renderProducts, orders: renderOrders, banners: renderBanners, cats: renderCats, push: renderPush, settings: renderSettings })[TAB](); }
 
 /* ---------- Products ---------- */
 const live = (id) => LIVE.items.find((i) => i.id === id);
@@ -222,14 +223,68 @@ function edit(id) {
 }
 function close() { const m = $("mod"); if (m) m.remove(); }
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
-async function uploadPhoto(file) {
+async function uploadPhoto(file, max = 900) {
   const img = await new Promise((res, rej) => { const u = URL.createObjectURL(file), i = new Image(); i.onload = () => { URL.revokeObjectURL(u); res(i); }; i.onerror = rej; i.src = u; });
-  const s = Math.min(1, 900 / Math.max(img.width, img.height)), c = document.createElement("canvas");
+  const s = Math.min(1, max / Math.max(img.width, img.height)), c = document.createElement("canvas");
   c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
   const x = c.getContext("2d"); x.fillStyle = "#fff"; x.fillRect(0, 0, c.width, c.height); x.drawImage(img, 0, 0, c.width, c.height);
   const blob = await new Promise((r) => c.toBlob(r, "image/jpeg", 0.82));
   const r = await api("/api/admin/upload", { method: "POST", headers: { "content-type": "image/jpeg" }, body: blob });
   return r.url;
+}
+
+/* ---------- Home page slides (brands and offers) ---------- */
+function renderBanners() {
+  if (!W.banners) W.banners = [];
+  const B = W.banners, el = $("t-banners");
+  const link = (b, n) => {
+    const m = /^c(\d+)$/.exec(b.go || ""), kind = m ? "c" : (b.go || "").startsWith("q:") ? "q" : "";
+    return `<label class="f">When tapped, open<select data-f="gk"><option value="">Nothing (picture only)</option><option value="q" ${kind === "q" ? "selected" : ""}>A search</option><option value="c" ${kind === "c" ? "selected" : ""}>A category</option></select></label>`
+      + (kind === "q" ? `<label class="f">Search for<input data-f="gq" value="${esc(b.go.slice(2))}" maxlength="60" placeholder="e.g. Biosynex"></label>` : "")
+      + (kind === "c" ? `<label class="f">Category<select data-f="gc">${W.cats.map((c, k) => `<option value="${k}" ${+m[1] === k ? "selected" : ""}>${esc(c.n)}</option>`).join("")}</select></label>` : "");
+  };
+  el.innerHTML = `<div class="panel" style="max-width:860px"><h2 style="font-size:18px">Home page slides</h2>
+<p class="mu sm" style="margin:0">Brands and offers that slide across the top of the catalogue. A square product photo shows beside the text on the slide colour. A wide banner (about 3 × 1, for example 1500 × 500) fills the whole slide; leave the title empty if the banner already has its own text. Up to 12 slides; hidden slides are kept here but not shown.</p>
+<div id="blist">${B.length ? B.map((b, n) => `<div class="bn${b.on ? "" : " hid"}" data-n="${n}">
+<div class="bprev" style="--bg:${esc(b.bg)}">${b.im ? `<img src="${esc(b.im)}" alt="">` : `<span>No picture</span>`}<b>${esc(b.t || "(no title)")}</b></div>
+<div class="bf">
+ <div class="row"><b>Slide ${n + 1}</b><label class="sw" title="Show on the catalogue"><input type="checkbox" data-f="on" ${b.on ? "checked" : ""} aria-label="Show slide ${n + 1}"><i></i></label><span class="mu sm">${b.on ? "Shown" : "Hidden"}</span><span class="sp"></span>
+ <button class="btn" data-mv="-1" ${n ? "" : "disabled"} aria-label="Move up">↑</button><button class="btn" data-mv="1" ${n < B.length - 1 ? "" : "disabled"} aria-label="Move down">↓</button><button class="btn dng" data-del>Delete</button></div>
+ <div class="row"><label class="btn">${b.im ? "Change picture" : "Upload picture"}<input type="file" accept="image/jpeg,image/png,image/webp" data-up hidden></label>${b.im ? `<button class="btn" data-noimg>Remove picture</button>` : ""}<label class="row sm mu" style="gap:6px">Slide colour<input type="color" data-f="bg" value="${esc(b.bg)}" aria-label="Slide colour"></label><span class="mu sm" data-msg></span></div>
+ <div class="g2"><label class="f">Title (English)<input data-f="t" value="${esc(b.t)}" maxlength="80"></label><label class="f">Title (Arabic)<input class="ar" dir="rtl" data-f="ta" value="${esc(b.ta)}" maxlength="80"></label>
+ <label class="f">Text (English)<input data-f="s" value="${esc(b.s)}" maxlength="160"></label><label class="f">Text (Arabic)<input class="ar" dir="rtl" data-f="sa" value="${esc(b.sa)}" maxlength="160"></label>
+ <label class="f">Small label (English)<input data-f="l" value="${esc(b.l)}" maxlength="24" placeholder="e.g. Offer, New, Brand"></label><label class="f">Small label (Arabic)<input class="ar" dir="rtl" data-f="la" value="${esc(b.la)}" maxlength="24" placeholder="مثلاً: عرض، جديد"></label>
+ ${link(b, n)}</div>
+</div></div>`).join("") : `<p class="mu">No slides yet. The slider is hidden on the catalogue until you add one.</p>`}</div>
+<div class="row"><button class="btn pri" id="badd" ${B.length >= 12 ? "disabled" : ""}>+ Add slide</button><span class="mu sm">Publish changes to put the slides live.</span></div></div>`;
+  const L = $("blist"), at = (e) => { const r = e.target.closest(".bn"); return r ? [r, B[+r.dataset.n]] : []; };
+  L.oninput = (e) => {
+    const [r, b] = at(e), f = e.target.dataset.f; if (!b || !f || f === "gk" || f === "gc" || f === "on") return;
+    if (f === "gq") b.go = "q:" + e.target.value; else b[f] = e.target.value;
+    if (f === "t") r.querySelector(".bprev b").textContent = b.t || "(no title)";
+    if (f === "bg") r.querySelector(".bprev").style.setProperty("--bg", b.bg);
+    state();
+  };
+  L.onchange = async (e) => {
+    const [r, b] = at(e); if (!b) return; const f = e.target.dataset.f;
+    if (f === "on") { b.on = e.target.checked ? 1 : 0; renderBanners(); state(); return; }
+    if (f === "gk") { b.go = e.target.value === "c" ? "c0" : e.target.value === "q" ? "q:" : ""; renderBanners(); state(); return; }
+    if (f === "gc") { b.go = "c" + e.target.value; state(); return; }
+    if (e.target.hasAttribute("data-up")) {
+      const file = e.target.files[0]; if (!file) return; const msg = r.querySelector("[data-msg]"); msg.textContent = "Uploading…";
+      try { b.im = await uploadPhoto(file, 1600); renderBanners(); state(); toast("Picture uploaded. Publish changes to put it live."); }
+      catch (err) { if (err.status !== 401) msg.textContent = "Upload failed. Try a JPG or PNG under 3 MB."; }
+    }
+  };
+  L.onclick = (e) => {
+    const [, b] = at(e); if (!b) return; const n = B.indexOf(b);
+    const mv = e.target.closest("[data-mv]");
+    if (mv) { const j = n + +mv.dataset.mv; [B[n], B[j]] = [B[j], B[n]]; renderBanners(); state(); }
+    if (e.target.closest("[data-noimg]")) { b.im = ""; renderBanners(); state(); }
+    const d = e.target.closest("[data-del]");
+    if (d && confirmTwice(d, "Tap again to delete")) { B.splice(n, 1); renderBanners(); state(); }
+  };
+  $("badd").onclick = () => { B.push({ im: "", t: "New offer", ta: "", s: "", sa: "", l: "Offer", la: "عرض", go: "", bg: "#001765", on: 1 }); renderBanners(); state(); $("blist").lastElementChild.scrollIntoView({ block: "center" }); };
 }
 
 /* ---------- Categories ---------- */
@@ -242,8 +297,8 @@ function renderCats() {
   $("clist").onclick = (e) => {
     const r = e.target.closest(".cat"); if (!r) return; const k = +r.dataset.k;
     const mv = e.target.closest("[data-mv]");
-    if (mv) { const j = k + +mv.dataset.mv; [W.cats[k], W.cats[j]] = [W.cats[j], W.cats[k]]; W.items.forEach((i) => { if (i.k === k) i.k = j; else if (i.k === j) i.k = k; }); renderCats(); state(); }
-    if (e.target.closest("[data-del]")) { W.cats.splice(k, 1); W.items.forEach((i) => { if (i.k > k) i.k--; }); F.cat = -1; renderCats(); state(); }
+    if (mv) { const j = k + +mv.dataset.mv; [W.cats[k], W.cats[j]] = [W.cats[j], W.cats[k]]; W.items.forEach((i) => { if (i.k === k) i.k = j; else if (i.k === j) i.k = k; }); (W.banners || []).forEach((b) => { if (b.go === "c" + k) b.go = "c" + j; else if (b.go === "c" + j) b.go = "c" + k; }); renderCats(); state(); }
+    if (e.target.closest("[data-del]")) { W.cats.splice(k, 1); W.items.forEach((i) => { if (i.k > k) i.k--; }); (W.banners || []).forEach((b) => { const m = /^c(\d+)$/.exec(b.go); if (m && +m[1] === k) b.go = ""; else if (m && +m[1] > k) b.go = "c" + (m[1] - 1); }); F.cat = -1; renderCats(); state(); }
   };
   $("cadd").onclick = () => { W.cats.push({ n: "New category", a: "", c: "#008dd5", e: "📦" }); renderCats(); state(); };
 }

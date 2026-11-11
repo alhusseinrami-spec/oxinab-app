@@ -90,6 +90,13 @@ tr.off td{opacity:.55}tr.chg td:first-child{box-shadow:inset 3px 0 var(--acc)}
 .cat .dot{width:14px;height:14px;border-radius:50%}
 .cat input[type=color]{padding:2px;height:36px;width:52px}
 @media(max-width:640px){.cat{grid-template-columns:auto 50px 1fr;}.cat .ar,.cat .cl{grid-column:2/-1}.cat .acts{grid-column:1/-1}}
+.bn{display:grid;grid-template-columns:220px 1fr;gap:14px;padding:14px 0;border-bottom:1px solid var(--bd)}.bn:last-child{border-bottom:0}.bn.hid .bprev{opacity:.45}
+.bprev{background:var(--bg);border-radius:12px;color:#fff;aspect-ratio:2.4;display:flex;align-items:center;gap:8px;padding:10px;overflow:hidden;align-self:start}
+.bprev img{height:100%;max-width:55%;object-fit:contain;background:#fff;border-radius:8px;order:2}
+.bprev b{flex:1;font:700 14px/1.2 Outfit,Manrope,sans-serif}.bprev span{font-size:12px;opacity:.8;order:2}
+.bf input[type=color]{width:46px;height:34px;padding:2px;cursor:pointer}
+.bf{display:flex;flex-direction:column;gap:10px;min-width:0}.bf .sp{flex:1}
+@media(max-width:640px){.bn{grid-template-columns:1fr}.bprev{max-width:320px}}
 .preview{display:flex;gap:10px;align-items:flex-start;background:var(--soft);border-radius:14px;padding:12px}
 .preview img{width:36px;height:36px;border-radius:8px;background:#fff}
 .preview b{display:block}
@@ -123,6 +130,7 @@ tr.off td{opacity:.55}tr.chg td:first-child{box-shadow:inset 3px 0 var(--acc)}
   <nav class="tabs" role="tablist">
     <button role="tab" data-t="products" aria-selected="true">Products</button>
     <button role="tab" data-t="orders" aria-selected="false">Orders <span class="badge" id="obadge" hidden></span></button>
+    <button role="tab" data-t="banners" aria-selected="false">Slides</button>
     <button role="tab" data-t="cats" aria-selected="false">Categories</button>
     <button role="tab" data-t="push" aria-selected="false">Notifications</button>
     <button role="tab" data-t="settings" aria-selected="false">Settings</button>
@@ -132,6 +140,7 @@ tr.off td{opacity:.55}tr.chg td:first-child{box-shadow:inset 3px 0 var(--acc)}
   <div id="warn"></div>
   <section id="t-products"></section>
   <section id="t-orders" hidden></section>
+  <section id="t-banners" hidden></section>
   <section id="t-cats" hidden></section>
   <section id="t-push" hidden></section>
   <section id="t-settings" hidden></section>
