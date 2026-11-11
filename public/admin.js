@@ -130,6 +130,7 @@ function renderProducts() {
 <select id="fc" aria-label="Category"></select>
 <select id="fs" aria-label="Status"><option value="all">All products</option><option value="on">Online</option><option value="off">Offline</option><option value="out">Out of stock</option><option value="low">Low stock</option><option value="none">No stock entered</option></select>
 <button class="btn pri" id="new">+ New product</button></div>
+<div class="bar bulk"><b class="sm">Bulk stock and prices:</b><button class="btn" id="bkx">⬇ Download Excel</button><button class="btn" id="bkc">⬇ CSV</button><label class="btn">⬆ Upload filled file<input type="file" id="bkf" accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden></label><span class="mu sm">Edit the Price, Stock and Online columns, upload, check, then publish.</span></div>
 <div class="tw"><table><thead><tr><th></th><th>Ref</th><th>Name</th><th>Category</th><th>Price ($)</th><th>Stock</th><th>Online</th><th></th></tr></thead><tbody id="rows"></tbody></table></div>
 <div class="pg" id="pg"></div>`;
     el.dataset.ready = 1;
