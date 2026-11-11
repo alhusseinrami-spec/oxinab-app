@@ -67,6 +67,11 @@ td .ref{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;white-space:no
 td input.n{width:88px;font-variant-numeric:tabular-nums}
 tr.off td{opacity:.55}tr.chg td:first-child{box-shadow:inset 3px 0 var(--acc)}
 .pill{display:inline-block;border-radius:99px;padding:2px 9px;font-size:12px;font-weight:700;white-space:nowrap}
+.badge{display:inline-block;min-width:20px;border-radius:99px;padding:0 6px;margin-inline-start:4px;background:var(--bad);color:#fff;font-size:12px;line-height:20px;text-align:center}
+.ord{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px 16px;display:grid;grid-template-columns:1fr auto;gap:6px 16px;margin-bottom:10px}
+.ord.cancelled{opacity:.6}.ord h3{font-size:16px}.ord ul{margin:4px 0 0;padding-inline-start:18px}.ord .meta{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13.5px;color:var(--mu)}.ord .meta a{color:var(--pr)}.ord select{font-weight:700}
+.st-new{color:var(--pr)}.st-confirmed{color:var(--warn)}.st-delivered{color:var(--ok)}.st-cancelled{color:var(--bad)}
+@media(max-width:560px){.ord{grid-template-columns:1fr}}
 .pill.out{background:#fde2e0;color:#a5281b}.pill.none{background:var(--soft);color:var(--mu)}.pill.low{background:#fff1d6;color:#7a4b00}
 .sw{position:relative;display:inline-block;width:42px;height:24px;flex:none}.sw input{opacity:0;position:absolute;inset:0;margin:0;cursor:pointer;z-index:1}.sw i{position:absolute;inset:0;border-radius:99px;background:#b9c3cf;transition:.15s}.sw i:after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:.15s}.sw input:checked+i{background:var(--ok)}.sw input:checked+i:after{left:21px}.sw input:focus-visible+i{outline:3px solid var(--acc)}
 .pg{display:flex;gap:8px;align-items:center;justify-content:center;margin-top:12px}
@@ -117,6 +122,7 @@ tr.off td{opacity:.55}tr.chg td:first-child{box-shadow:inset 3px 0 var(--acc)}
   </div>
   <nav class="tabs" role="tablist">
     <button role="tab" data-t="products" aria-selected="true">Products</button>
+    <button role="tab" data-t="orders" aria-selected="false">Orders <span class="badge" id="obadge" hidden></span></button>
     <button role="tab" data-t="cats" aria-selected="false">Categories</button>
     <button role="tab" data-t="push" aria-selected="false">Notifications</button>
     <button role="tab" data-t="settings" aria-selected="false">Settings</button>
@@ -125,6 +131,7 @@ tr.off td{opacity:.55}tr.chg td:first-child{box-shadow:inset 3px 0 var(--acc)}
 <main class="wrap">
   <div id="warn"></div>
   <section id="t-products"></section>
+  <section id="t-orders" hidden></section>
   <section id="t-cats" hidden></section>
   <section id="t-push" hidden></section>
   <section id="t-settings" hidden></section>

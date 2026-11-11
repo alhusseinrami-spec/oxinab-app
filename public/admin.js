@@ -56,7 +56,7 @@ async function start() {
   LIVE = r.data; VERSION = r.version;
   if (!W) W = clone(LIVE);
   $("app").hidden = false; $("login").hidden = true;
-  warn(); render();
+  warn(); render(); loadOrders();
 }
 function warn() {
   const w = [];
@@ -105,10 +105,10 @@ document.querySelector("nav.tabs").onclick = (e) => {
   const b = e.target.closest("button[data-t]"); if (!b) return;
   TAB = b.dataset.t;
   document.querySelectorAll("nav.tabs button").forEach((x) => x.setAttribute("aria-selected", x === b ? "true" : "false"));
-  ["products", "cats", "push", "settings"].forEach((t) => ($("t-" + t).hidden = t !== TAB));
+  ["products", "orders", "cats", "push", "settings"].forEach((t) => ($("t-" + t).hidden = t !== TAB));
   render();
 };
-function render() { state(); ({ products: renderProducts, cats: renderCats, push: renderPush, settings: renderSettings })[TAB](); }
+function render() { state(); ({ products: renderProducts, orders: renderOrders, cats: renderCats, push: renderPush, settings: renderSettings })[TAB](); }
 
 /* ---------- Products ---------- */
 const live = (id) => LIVE.items.find((i) => i.id === id);
@@ -301,3 +301,57 @@ function renderSettings() {
 }
 
 start().catch((e) => { if (e.status !== 401) showLogin(); });
+
+/* ---------- Orders ---------- */
+// Every "Send order on WhatsApp" tap in the catalogue is saved here with its order number.
+let ORD = null, OF = { q: "", st: "all", per: "all" };
+const ST = { new: "New", confirmed: "Confirmed", delivered: "Delivered", cancelled: "Cancelled" };
+async function loadOrders() {
+  try { ORD = (await api("/api/admin/orders")).orders; } catch (e) { if (e.status === 401) return; ORD = ORD || []; }
+  const n = ORD.filter((o) => o.status === "new").length;
+  $("obadge").hidden = !n; $("obadge").textContent = n;
+  if (TAB === "orders") renderOrders();
+}
+const when = (iso) => new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+const usd = (v) => "$" + Number(v).toFixed(2);
+function renderOrders() {
+  const el = $("t-orders");
+  if (!ORD) { el.innerHTML = '<p class="mu">Loading orders…</p>'; return; }
+  const cnt = (s) => ORD.filter((o) => o.status === s).length;
+  el.innerHTML = `<div class="sum" id="osum"><button data-st="all"><b>${ORD.length}</b><span>All orders</span></button>${Object.keys(ST).map((s) => `<button data-st="${s}"${s === "cancelled" ? ' class="x"' : s === "new" ? ' class="w"' : ""}><b>${cnt(s)}</b><span>${ST[s]}</span></button>`).join("")}</div>
+<div class="bar"><input type="search" id="oq" placeholder="Search order number, name, phone or product" value="${esc(OF.q)}" aria-label="Search orders">
+<select id="ost" aria-label="Status"><option value="all">All statuses</option>${Object.keys(ST).map((s) => `<option value="${s}">${ST[s]}</option>`).join("")}</select>
+<select id="oper" aria-label="Period"><option value="all">Any time</option><option value="1">Today</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option></select>
+<button class="btn" id="oref">Refresh</button></div><div id="olist"></div>
+<p class="mu sm">An order is saved when a customer taps "Send order on WhatsApp". If they then don't send the message, mark it Cancelled.</p>`;
+  $("ost").value = OF.st; $("oper").value = OF.per;
+  $("oq").oninput = (e) => { OF.q = e.target.value; list(); };
+  $("ost").onchange = (e) => { OF.st = e.target.value; list(); };
+  $("oper").onchange = (e) => { OF.per = e.target.value; list(); };
+  $("osum").onclick = (e) => { const b = e.target.closest("button[data-st]"); if (!b) return; OF.st = b.dataset.st; $("ost").value = OF.st; list(); };
+  $("oref").onclick = async () => { $("oref").disabled = true; await loadOrders(); };
+  $("olist").onchange = async (e) => {
+    const sel = e.target.closest("select[data-o]"); if (!sel) return;
+    const o = ORD.find((x) => x.id === sel.dataset.o), old = o.status;
+    sel.disabled = true;
+    try { await api("/api/admin/orders", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: o.id, status: sel.value }) }); o.status = sel.value; toast(`Order #${o.id} marked ${ST[o.status]}.`); }
+    catch (err) { sel.value = old; toast("Could not change the status. Try again."); }
+    $("obadge").hidden = !cnt("new"); $("obadge").textContent = cnt("new");
+    renderOrders();
+  };
+  list();
+  function list() {
+    const q = OF.q.trim().toLowerCase(), since = OF.per === "all" ? 0 : OF.per === "1" ? new Date().setHours(0, 0, 0, 0) : Date.now() - OF.per * 864e5;
+    const it = ORD.filter((o) => (OF.st === "all" || o.status === OF.st) && new Date(o.at) >= since
+      && (!q || [o.id, o.name, o.phone, o.addr, ...o.items.map((i) => i.id + " " + i.n)].join(" ").toLowerCase().includes(q)));
+    $("olist").innerHTML = it.length ? it.map((o) => {
+      const tel = (o.phone || "").replace(/[^\d+]/g, "").replace(/^\+/, "").replace(/^00/, "").replace(/^0/, "961");
+      return `<article class="ord ${o.status}"><div><h3>Order #${esc(o.id)} <span class="st-${o.status} sm">● ${ST[o.status]}</span></h3>
+<ul>${o.items.map((i) => `<li>${i.q} × ${esc(i.n)} <span class="mu sm">${esc(i.id)}${i.p ? " · " + usd(i.p) : ""}</span></li>`).join("")}</ul></div>
+<div style="text-align:end"><b style="font-size:17px">${o.total != null ? usd(o.total) : '<span class="mu sm">No total (prices missing)</span>'}</b><br>
+<select data-o="${esc(o.id)}" aria-label="Status of order ${esc(o.id)}" style="margin-top:6px">${Object.keys(ST).map((s) => `<option value="${s}" ${s === o.status ? "selected" : ""}>${ST[s]}</option>`).join("")}</select></div>
+<div class="meta"><span>🕒 ${when(o.at)}</span><span>👤 ${esc(o.name || "No name given")}</span>${o.phone ? `<span>📞 <a href="https://wa.me/${esc(tel)}" target="_blank" rel="noopener">${esc(o.phone)}</a></span>` : ""}${o.addr ? `<span>📍 ${esc(o.addr)}</span>` : ""}<span>${o.lang === "ar" ? "Arabic" : "English"}</span></div></article>`;
+    }).join("") : `<div class="panel"><p class="mu" style="margin:0">${ORD.length ? "No orders match these filters." : "No orders yet. They appear here when customers send an order from the catalogue."}</p></div>`;
+  }
+}
+setInterval(() => { if (ME.signedIn && !document.hidden) loadOrders(); }, 60000);

@@ -12,7 +12,7 @@ const TR={"Language":"اللغة","Updated":"آخر تحديث","Products":"ال
 "Medical supplies | Lebanon":"مستلزمات طبية | لبنان","Order and enquiries":"الطلبات والاستفسارات","WhatsApp:":"واتساب:",
 "Delivery and payment":"التوصيل والدفع",
 "Prices are indicative; the final price is confirmed when you order. Product appearance and packaging may vary. Please quote the reference number when ordering.":"الأسعار تقريبية، ويتم تأكيد السعر النهائي عند الطلب. قد يختلف شكل المنتج وتغليفه. يرجى ذكر الرقم المرجعي عند الطلب.",
-"Your order":"طلبك","Send order on WhatsApp":"أرسل الطلب عبر واتساب",
+"Your order":"طلبك","Your details (optional) help us prepare your order.":"بياناتك (اختيارية) تساعدنا في تجهيز طلبك.","Your name":"الاسم","Phone number":"رقم الهاتف","Area / address for delivery":"المنطقة / عنوان التوصيل","Send order on WhatsApp":"أرسل الطلب عبر واتساب",
 "Pay cash on delivery. We confirm availability, price and delivery on WhatsApp.":"الدفع نقداً عند الاستلام. نؤكد التوفر والسعر والتوصيل عبر واتساب.",
 "All":"الكل","Add":"أضف","Ask for a quote":"اطلب السعر","product":"منتج","products":"منتجات",
 "No match. Message us on WhatsApp and we will check availability for you.":"لا توجد نتائج. راسلنا على واتساب وسنتحقق من التوفر لك.",
@@ -35,6 +35,9 @@ const tot=()=>Object.keys(cart).reduce((s,k)=>s+byId[k].pr*cart[k],0);
 const save=()=>{try{localStorage.setItem('oxc',JSON.stringify(cart))}catch(e){}};
 const out=p=>p.s===0;
 let cart={},cat=-1,q='';
+const newOID=()=>{const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',r=crypto.getRandomValues(new Uint8Array(6));return Array.from(r,x=>c[x%c.length]).join('')};
+let OID=newOID();
+const who=()=>({name:($('u_n').value||'').trim(),phone:($('u_p').value||'').trim(),addr:($('u_a').value||'').trim()});
 function toast(m){const o=document.createElement('div');o.className='toast';o.textContent=m;document.body.appendChild(o);setTimeout(()=>o.remove(),3500)}
 
 function stat(){
@@ -79,9 +82,20 @@ function drawCart(){
  $('ci').innerHTML=ks.length?ks.map(k=>{const p=byId[k];return `<div class="it" style="--c:${CATS[p.ci].c}"><div><b>${esc(nm(p))}</b><span class="mu sm" dir="ltr">${p.id}${SHOW_PRICES&&p.pr?' · '+money(p.pr):''}</span></div>${stepper(k)}</div>`}).join(''):'<p class="mu">'+t('Your order is empty. Add products from the catalogue.')+'</p>';
  $('tt').innerHTML=pr?`<span>${t('Estimated total')}</span><span dir="ltr">${money(tot())}</span>`:`<span>${t('Items')}</span><span>${qty()}</span>`;
  const a=$('wa');a.classList.toggle('off',!ks.length);
- const msg=LANG==='ar'?'مرحباً أوكسيناب، أود طلب:\n'+ks.map(k=>'• '+k+' - '+(byId[k].a||byId[k].n)+' × '+cart[k]).join('\n')+(pr?'\nالمجموع التقريبي: '+money(tot()):'')+'\nالدفع: عند الاستلام':'Hello Oxinab, I would like to order:\n'+ks.map(k=>'• '+k+' - '+byId[k].n+' x '+cart[k]).join('\n')+(pr?'\nEstimated total: '+money(tot()):'')+'\nPayment: Cash on Delivery';
+ const U=who(),ul=LANG==='ar'?[U.name&&'الاسم: '+U.name,U.phone&&'الهاتف: '+U.phone,U.addr&&'العنوان: '+U.addr]:[U.name&&'Name: '+U.name,U.phone&&'Phone: '+U.phone,U.addr&&'Address: '+U.addr];
+ const head=(LANG==='ar'?'طلب رقم ':'Order #')+OID+'\n',tail=ul.filter(Boolean).length?'\n'+ul.filter(Boolean).join('\n'):'';
+ const msg=head+(LANG==='ar'?'مرحباً أوكسيناب، أود طلب:\n'+ks.map(k=>'• '+k+' - '+(byId[k].a||byId[k].n)+' × '+cart[k]).join('\n')+(pr?'\nالمجموع التقريبي: '+money(tot()):'')+'\nالدفع: عند الاستلام':'Hello Oxinab, I would like to order:\n'+ks.map(k=>'• '+k+' - '+byId[k].n+' x '+cart[k]).join('\n')+(pr?'\nEstimated total: '+money(tot()):'')+'\nPayment: Cash on Delivery')+tail;
  a.href=ks.length?'https://wa.me/'+WA+'?text='+encodeURIComponent(msg):'#';
 }
+/* Order number and customer details */
+try{const u=JSON.parse(localStorage.getItem('oxu')||'{}');$('u_n').value=u.name||'';$('u_p').value=u.phone||'';$('u_a').value=u.addr||''}catch(e){}
+$('cu').addEventListener('input',()=>{try{localStorage.setItem('oxu',JSON.stringify(who()))}catch(e){}drawCart()});
+$('wa').addEventListener('click',()=>{
+ const ks=Object.keys(cart);if(!ks.length)return;
+ const body=JSON.stringify({id:OID,lang:LANG,...who(),items:ks.map(k=>({id:k,q:cart[k]}))});
+ try{fetch('/api/order',{method:'POST',headers:{'content-type':'application/json'},body,keepalive:true}).catch(()=>{})}catch(e){}
+ setTimeout(()=>{OID=newOID();drawCart()},800); // the next order gets its own number
+});
 function ch(id,d){const p=byId[id];if(!p)return;let n=Math.max(0,(cart[id]||0)+d);if(p.s!=null)n=Math.min(n,p.s);cart[id]=n;if(!cart[id])delete cart[id];save();draw();drawCart()}
 function chips(){
  const ix=CATS.map((c,i)=>i).filter(i=>cnt[i]>0),n=ix.reduce((a,i)=>a+cnt[i],0);
