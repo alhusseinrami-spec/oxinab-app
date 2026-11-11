@@ -7,6 +7,7 @@ const hits = new Map(); // best effort, per server instance: at most 20 orders a
 const str = (v, max) => (typeof v === "string" ? v.replace(/\s+/g, " ").trim().slice(0, max) : "");
 
 export async function POST(req) {
+  console.log("order.in", req.headers.get("origin") || "-", req.headers.get("host") || "-");
   if (!sameOrigin(req)) { console.warn("order.bad_origin", req.headers.get("origin")); return json({ error: "bad_origin" }, 403); }
   if (!blobReady()) return json({ error: "storage_not_connected" }, 503);
   const ip = (req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || "?";
@@ -16,6 +17,7 @@ export async function POST(req) {
 
   let b = {};
   try { b = await req.json(); } catch {}
+  if (b && typeof b.diag === "string") { console.warn("client.diag", b.diag.slice(0, 300), "|", str(b.ua, 160), "| app:", !!b.sa); return json({ ok: true }); }
   const id = String(b.id || "");
   if (!ORDER_ID.test(id)) { console.warn("order.bad_id"); return json({ error: "bad_id" }, 400); }
   const { data } = await loadCatalog();

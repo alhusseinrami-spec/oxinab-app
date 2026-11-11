@@ -141,14 +141,28 @@ async function flushOrders(minAge){
    if(r.ok||(r.status>=400&&r.status<500&&r.status!==429))obxSet(obx().filter(x=>x.id!==o.id));}catch(e){break}
  }}finally{flushing=false}
 }
-$('wa').addEventListener('click',()=>{
- const ks=Object.keys(cart);if(!ks.length)return;
- const body=JSON.stringify({id:OID,lang:LANG,...who(),items:ks.map(k=>({id:k,q:cart[k]}))});
- obxSet([...obx().filter(x=>x.id!==OID),{id:OID,t:Date.now(),body}]);
- let sent=false;try{sent=navigator.sendBeacon&&navigator.sendBeacon('/api/order',new Blob([body],{type:'text/plain;charset=UTF-8'}))}catch(e){}
- if(!sent)flushOrders(0);
- setTimeout(()=>{OID=newOID();drawCart()},800); // the next order gets its own number
+/* Tapping Send first saves the order on the server (up to 3 seconds), says so on screen, then opens WhatsApp.
+   If the server cannot be reached the order stays in the outbox and is re-sent when the app is back. */
+let sending=false;
+$('wa').addEventListener('click',async e=>{
+ const ks=Object.keys(cart),href=$('wa').href;if(!ks.length){e.preventDefault();return}
+ e.preventDefault();if(sending)return;sending=true;
+ const id=OID,body=JSON.stringify({id,lang:LANG,...who(),items:ks.map(k=>({id:k,q:cart[k]}))});
+ obxSet([...obx().filter(x=>x.id!==id),{id,t:Date.now(),body}]);
+ let ok=false;
+ try{const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),3000);
+  const r=await fetch('/api/order',{method:'POST',headers:{'content-type':'application/json'},body,keepalive:true,signal:ac.signal});clearTimeout(tm);
+  if(r.ok){ok=true;obxSet(obx().filter(x=>x.id!==id))}else diag('order_http_'+r.status);
+ }catch(err){diag('order_net_'+(err&&err.name||'err'))}
+ toast(ok?(LANG==='ar'?'تم استلام الطلب رقم '+id:'Order #'+id+' received'):(LANG==='ar'?'الطلب محفوظ على هاتفك وسيُرسل لاحقاً':'Order saved on your phone, it will be sent when you are back online'));
+ OID=newOID();sending=false;
+ setTimeout(()=>{location.href=href;drawCart()},ok?600:1200);
 });
+/* Problems on customers' phones are reported (no personal details) so they can be fixed. */
+let dg=0;function diag(m){if(dg++>5)return;try{navigator.sendBeacon('/api/order',new Blob([JSON.stringify({diag:String(m).slice(0,300),ua:navigator.userAgent.slice(0,160),sa:standaloneNow()})],{type:'text/plain;charset=UTF-8'}))}catch(e){}}
+function standaloneNow(){try{return matchMedia('(display-mode: standalone)').matches}catch(e){return false}}
+addEventListener('error',e=>diag('js:'+(e.message||'')+' @'+(e.lineno||0)));
+addEventListener('unhandledrejection',e=>diag('rej:'+(e.reason&&e.reason.message||e.reason||'')));
 function ch(id,d){const p=byId[id];if(!p)return;let n=Math.max(0,(cart[id]||0)+d);if(p.s!=null)n=Math.min(n,p.s);cart[id]=n;if(!cart[id])delete cart[id];save();draw();drawCart()}
 function chips(){
  const ix=CATS.map((c,i)=>i).filter(i=>cnt[i]>0),n=ix.reduce((a,i)=>a+cnt[i],0);
