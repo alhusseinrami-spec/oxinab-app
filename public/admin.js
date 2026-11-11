@@ -38,7 +38,7 @@ $("lf").onsubmit = async (e) => {
 };
 $("out").onclick = async () => {
   if (dirty() && !confirmTwice($("out"), "Sign out and lose edits?")) return;
-  await fetch("/api/admin/logout", { method: "POST" }); location.reload();
+  await fetch("/api/admin/login", { method: "DELETE" }); location.reload();
 };
 const armed = new WeakMap();
 function confirmTwice(btn, label) {

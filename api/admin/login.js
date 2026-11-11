@@ -1,4 +1,4 @@
-import { json, checkPassword, passwordConfigured, sessionCookie, sameOrigin } from "../_lib.js";
+import { clearCookie, json, checkPassword, passwordConfigured, sessionCookie, sameOrigin } from "../_lib.js";
 
 const tries = new Map(); // best effort, per server instance
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -21,3 +21,6 @@ export async function POST(req) {
   tries.delete(ip);
   return json({ ok: true }, 200, { "set-cookie": sessionCookie() });
 }
+
+// Sign out (kept in this file: the Hobby plan allows 12 API routes).
+export function DELETE() { return json({ ok: true }, 200, { "set-cookie": clearCookie() }); }
