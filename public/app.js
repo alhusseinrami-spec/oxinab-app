@@ -3,7 +3,7 @@ const TR={"Language":"اللغة","Updated":"آخر تحديث","Products":"ال
 "Preview: sample products. The real Oxinab catalogue is coming soon.":"نسخة تجريبية: منتجات للعرض فقط. كتالوج أوكسيناب الكامل قريباً.",
 "Emergency, medical and home health supplies.":"مستلزمات الطوارئ والمستلزمات الطبية والصحة المنزلية.",
 "EMS and first aid, burn care, oxygen, diagnostics and home health. Find an item by name or reference, build your order, and send it on WhatsApp.":"الإسعاف والإسعافات الأولية، علاج الحروق، الأكسجين، أدوات التشخيص والصحة المنزلية. ابحث عن المنتج بالاسم أو بالرقم المرجعي، كوّن طلبك وأرسله عبر واتساب.",
-"Search e.g. stretcher, Burnshield, oximeter":"ابحث مثلاً: نقالة، Burnshield، جهاز أكسجين","Search":"بحث",
+"Search e.g. Burnshield, insole, thermometer":"ابحث مثلاً: Burnshield، نعل طبي، ميزان حرارة","Search":"بحث",
 "Delivery all over Lebanon":"توصيل إلى كل لبنان","Order on WhatsApp":"اطلب عبر واتساب","Cash on Delivery":"الدفع عند الاستلام",
 "Product catalogue":"كتالوج المنتجات","Choose your items":"اختر منتجاتك","Add products to your order. Each one has a reference number.":"أضف المنتجات إلى طلبك. لكل منتج رقم مرجعي.",
 "Send your order":"أرسل طلبك","Tap send on WhatsApp, or message +961 76 878 113.":"أرسله عبر واتساب، أو راسلنا على ‎+961 76 878 113.",

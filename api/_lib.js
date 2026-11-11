@@ -77,7 +77,10 @@ export async function loadCatalog() {
   all.sort((a, b) => b.pathname.localeCompare(a.pathname));
   const r = await fetch(all[0].url, { cache: "no-store" });
   if (!r.ok) throw new Error("catalog_fetch_" + r.status);
-  return { data: await r.json(), version: all[0].pathname };
+  const data = await r.json();
+  // A newer product list shipped in the code replaces the saved one once; the shop's settings are kept.
+  if ((data.seedv || 1) < (SEED.seedv || 1)) return { data: { ...SEED, set: { ...SEED.set, ...data.set } }, version: all[0].pathname };
+  return { data, version: all[0].pathname };
 }
 export async function saveCatalog(data) {
   const name = "catalog/" + String(Date.now()).padStart(15, "0") + ".json";
@@ -103,7 +106,7 @@ export function cleanCatalog(input) {
   }));
   const seen = new Set();
   const items = input.items.map((i) => {
-    const id = str(i.id, 24).replace(/[^A-Za-z0-9_-]/g, "");
+    const id = str(i.id, 24).replace(/\s+/g, "-").replace(/[^A-Za-z0-9_./-]/g, "");
     if (!id || seen.has(id)) throw new Error("bad_ref:" + id);
     seen.add(id);
     const k = Number.isInteger(i.k) && i.k >= 0 && i.k < cats.length ? i.k : 0;
@@ -123,6 +126,7 @@ export function cleanCatalog(input) {
   const wa = String(st.wa || "").replace(/\D/g, "").replace(/^00/, "");
   return {
     v: 1,
+    seedv: Math.max(Number(input.seedv) || 1, SEED.seedv || 1),
     set: {
       price: st.price ? 1 : 0,
       low: Math.max(0, Math.min(999, Math.floor(Number(st.low)) || 0)),

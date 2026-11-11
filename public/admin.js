@@ -204,7 +204,7 @@ function edit(id) {
   m.onclick = (e) => { if (e.target === m) close(); };
   $("eok").onclick = () => {
     const msg = (t) => ($("emsg").textContent = t);
-    const ref = $("e_id").value.trim().replace(/[^A-Za-z0-9_-]/g, "");
+    const ref = $("e_id").value.trim().replace(/\s+/g, "-").replace(/[^A-Za-z0-9_./-]/g, "");
     const n = $("e_n").value.trim(), p = parseFloat($("e_p").value || "0"), sv = $("e_s").value.trim();
     if (!ref) return msg("Enter a ref, for example OX-120.");
     if (ENEW && gi(ref)) return msg("That ref is already used. Choose another.");
