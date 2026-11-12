@@ -90,7 +90,7 @@ $("publish").onclick = async () => {
   try {
     const r = await api("/api/admin/catalog", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ base: VERSION, data: W }) });
     LIVE = r.data; VERSION = r.version; W = clone(LIVE);
-    toast("Published. Customers see the changes within a few seconds.");
+    toast("Published. Customers see the changes within about a minute.");
     render();
   } catch (e) {
     if (e.status === 401) return;
@@ -432,4 +432,5 @@ function renderOrders() {
     }).join("") : `<div class="panel"><p class="mu" style="margin:0">${ORD.length ? "No orders match these filters." : "No orders yet. They appear here when customers send an order from the catalogue."}</p></div>`;
   }
 }
-setInterval(() => { if (ME.signedIn && !document.hidden) loadOrders(); }, 60000);
+// Every 5 minutes: each check lists files, which the free storage plan counts. Refresh checks at once.
+setInterval(() => { if (ME.signedIn && !document.hidden) loadOrders(); }, 300000);

@@ -1,6 +1,6 @@
 // Shared helpers for the Oxinab API. Files starting with "_" are not deployed as routes.
 import { createHmac, createHash, timingSafeEqual, randomBytes } from "node:crypto";
-import { put, list, del } from "@vercel/blob";
+import { put, list, del, head } from "@vercel/blob";
 import SEED from "./_seed.js";
 
 /* ---------- Home page slides (brands and offers) ----------
@@ -87,15 +87,35 @@ export async function loadCatalog() {
   all.sort((a, b) => b.pathname.localeCompare(a.pathname));
   const r = await fetch(all[0].url, { cache: "no-store" });
   if (!r.ok) throw new Error("catalog_fetch_" + r.status);
-  const data = await r.json();
+  return fixup(await r.json(), all[0].pathname);
+}
+function fixup(data, version) {
   // A newer product list shipped in the code replaces the saved one once; the shop's settings are kept.
   if (!Array.isArray(data.banners)) data.banners = DEFAULT_BANNERS;
-  if ((data.seedv || 1) < (SEED.seedv || 1)) return { data: { ...SEED, set: { ...SEED.set, ...data.set }, banners: data.banners }, version: all[0].pathname };
-  return { data, version: all[0].pathname };
+  if ((data.seedv || 1) < (SEED.seedv || 1)) return { data: { ...SEED, set: { ...SEED.set, ...data.set }, banners: data.banners }, version };
+  return { data, version };
+}
+/* The shop and new orders read the live catalogue from one fixed file, catalog-live.json, through the storage's cache.
+   Listing files is a counted operation on the free plan (2,000 a month), so it is kept for the command center only.
+   A published change reaches phones within about a minute. */
+const LIVE = "catalog-live.json";
+let liveUrl = null;
+const putLive = (data) => put(LIVE, JSON.stringify(data), { access: "public", addRandomSuffix: false, allowOverwrite: true, contentType: "application/json", cacheControlMaxAge: 60 });
+export async function loadCatalogFast() {
+  if (!blobReady()) return { data: SEED, version: "seed" };
+  try {
+    if (!liveUrl) liveUrl = (await head(LIVE)).url;
+    const r = await fetch(liveUrl + "?v=" + Math.floor(Date.now() / 60000));
+    if (r.ok) return fixup(await r.json(), "live");
+  } catch {}
+  const c = await loadCatalog();
+  if (c.version !== "seed") { try { liveUrl = (await putLive(c.data)).url; } catch {} }
+  return c;
 }
 export async function saveCatalog(data) {
   const name = "catalog/" + String(Date.now()).padStart(15, "0") + ".json";
   const b = await put(name, JSON.stringify(data), { access: "public", addRandomSuffix: true, contentType: "application/json", cacheControlMaxAge: 31536000 });
+  try { liveUrl = (await putLive(data)).url; } catch (e) { console.error("catalog.live_write_failed", String(e)); }
   const all = await listAll("catalog/");
   all.sort((a, b) => b.pathname.localeCompare(a.pathname));
   const old = all.slice(20).map((x) => x.url);

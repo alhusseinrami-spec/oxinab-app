@@ -1,5 +1,5 @@
 // A customer tapped "Send order on WhatsApp": keep a copy of the order for the command center.
-import { json, blobReady, loadCatalog, sameOrigin } from "./_lib.js";
+import { json, blobReady, loadCatalogFast as loadCatalog, sameOrigin } from "./_lib.js";
 import { list, put } from "@vercel/blob";
 import { saveOrder, ORDER_ID, trackPath, TRACK_PATH, trackFromOrder, readTrack, writeTrack, phoneKey } from "./_orders.js";
 
