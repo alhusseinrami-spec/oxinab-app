@@ -448,8 +448,8 @@ setInterval(() => { if (ME.signedIn && !document.hidden) loadOrders(); }, 300000
 function drvPanel() {
   const el = $("drvbox"); if (!el) return;
   const rows = DRV.map((d, i) => `<tr><td><input data-k="n" data-i="${i}" value="${esc(d.n)}" maxlength="40" aria-label="Name"></td><td><input data-k="tel" data-i="${i}" value="${esc(d.tel)}" maxlength="30" dir="ltr" aria-label="Phone"></td><td><input data-k="pin" data-i="${i}" placeholder="unchanged" inputmode="numeric" maxlength="8" aria-label="New PIN"></td><td><label class="row sm"><input type="checkbox" data-k="on" data-i="${i}" ${d.on ? "checked" : ""}> Can sign in</label></td></tr>`).join("");
-  el.innerHTML = `<div class="panel" style="max-width:none"><div class="row"><h2 style="font-size:18px">Drivers</h2><span class="sp"></span><a class="btn" href="/driver" target="_blank" rel="noopener">Open the driver app ↗</a></div>
-<p class="mu sm" style="margin:0 0 8px">Drivers open <b>${esc(location.host)}/driver</b> on their phone and sign in with their phone number and PIN. Give each order a driver with the Driver box on the order. ${KVLIVE ? "While a driver is delivering, the client sees them on a live map." : "<b>The live map needs the Redis database connected in Vercel.</b>"}</p>
+  el.innerHTML = `<div class="panel" style="max-width:none"><div class="row"><h2 style="font-size:18px">Drivers</h2><span class="sp"></span><a class="btn" href="https://oxinab-driver.vercel.app" target="_blank" rel="noopener">Open the driver app ↗</a></div>
+<p class="mu sm" style="margin:0 0 8px">Drivers open <b>oxinab-driver.vercel.app</b> on their phone and sign in with their phone number and PIN. Give each order a driver with the Driver box on the order. ${KVLIVE ? "While a driver is delivering, the client sees them on a live map." : "<b>The live map needs the Redis database connected in Vercel.</b>"}</p>
 <div class="tw"><table><thead><tr><th>Name</th><th>Phone</th><th>PIN (4–8 digits)</th><th></th></tr></thead><tbody id="drows">${rows}<tr><td><input data-new="n" placeholder="New driver name" maxlength="40"></td><td><input data-new="tel" placeholder="Phone" maxlength="30" dir="ltr"></td><td><input data-new="pin" placeholder="PIN" inputmode="numeric" maxlength="8"></td><td></td></tr></tbody></table></div>
 <div class="row"><button class="btn pri" id="drvsave" disabled>Save drivers</button><span class="mu sm" id="drvmsg"></span></div></div>`;
   const edit = DRV.map((d) => ({ id: d.id, n: d.n, tel: d.tel, on: d.on, pin: "" }));
@@ -476,3 +476,6 @@ function drvPanel() {
     }
   };
 }
+
+// Lets the command center be installed as its own app on a phone or computer.
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
