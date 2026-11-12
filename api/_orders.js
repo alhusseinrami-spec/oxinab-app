@@ -1,11 +1,13 @@
 // Order log. Each order is one file orders/<time>-<number>.json, encrypted so only this server can read it
 // (the storage is public-URL, and orders hold customers' names and phone numbers).
 // A status change adds a tiny file ostat/<number>/<time>-<status>.json; the newest one wins.
-import { createHash, createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
-import { put } from "@vercel/blob";
+import { createHash, createHmac, createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
+import { put, head } from "@vercel/blob";
 import { listAll } from "./_lib.js";
 
-export const STATUSES = ["new", "confirmed", "delivered", "cancelled"];
+// "new" is shown to clients as "Received". "out" is "Out for delivery".
+export const STATUSES = ["new", "confirmed", "preparing", "out", "delivered", "cancelled"];
+export const STEPS = ["new", "confirmed", "preparing", "out", "delivered"];
 export const ORDER_ID = /^[A-Z0-9]{6}$/;
 const key = () => createHash("sha256").update("oxinab-orders:" + (process.env.ORDERS_KEY || process.env.BLOB_READ_WRITE_TOKEN || "")).digest();
 const ts = () => String(Date.now()).padStart(15, "0");
@@ -35,6 +37,11 @@ export async function loadOrders(limit = 300) {
     const m = b.pathname.match(/^ostat\/([A-Z0-9]{6})\/\d+-(\w+)/);
     if (m && STATUSES.includes(m[2])) stat[m[1]] = m[2];
   }
+  const eta = {};
+  for (const b of (await listAll("oeta/")).sort((a, b) => a.pathname.localeCompare(b.pathname))) {
+    const m = b.pathname.match(/^oeta\/([A-Z0-9]{6})\/\d+-(\d+)/);
+    if (m) eta[m[1]] = +m[2] ? new Date(+m[2]).toISOString() : "";
+  }
   const out = [];
   for (let i = 0; i < files.length; i += 20) {
     out.push(...await Promise.all(files.slice(i, i + 20).map(async (f) => {
@@ -42,10 +49,54 @@ export async function loadOrders(limit = 300) {
         const r = await fetch(f.url);
         if (!r.ok) return null;
         const o = open(await r.text());
-        return { ...o, status: stat[o.id] || "new" };
+        return { ...o, status: stat[o.id] || "new", eta: eta[o.id] || "" };
       } catch { return null; }
     })));
   }
   const seen = new Set();
   return out.filter((o) => o && !seen.has(o.id) && seen.add(o.id));
+}
+
+/* ---------- Tracking page for the client ----------
+   Each order has a small public file track/<number>-<code>.json that the client's phone reads to show progress.
+   The code is derived from a server-only key, so a tracking file can't be guessed from the order number.
+   It holds no name, phone or address: only the items, total, progress, delivery time and proforma link.
+   ph is a keyed fingerprint of the phone number, so "find my order" can check the number without storing it. */
+const tkey = () => createHash("sha256").update("oxinab-track:" + (process.env.ORDERS_KEY || process.env.BLOB_READ_WRITE_TOKEN || "")).digest();
+export const trackPath = (id) => `track/${id}-${createHmac("sha256", tkey()).update(id).digest("hex").slice(0, 16)}.json`;
+export const TRACK_PATH = /^\/track\/([A-Z0-9]{6})-[0-9a-f]{16}\.json$/;
+export function phoneKey(p) {
+  // Same number written different ways (03 123 456, +961 3 123 456, 00961…) gives the same result.
+  const d = String(p || "").replace(/\D/g, "").replace(/^00/, "").replace(/^961/, "").replace(/^0+/, "").slice(-8);
+  return d.length >= 6 ? createHmac("sha256", tkey()).update("ph:" + d).digest("hex").slice(0, 16) : "";
+}
+export const trackFromOrder = (o) => ({
+  id: o.id, at: o.at, items: o.items.map((i) => ({ id: i.id, n: i.n, q: i.q, p: i.p })), total: o.total,
+  status: "new", steps: { new: o.at }, eta: "", pf: null, ph: phoneKey(o.phone), up: new Date().toISOString(),
+});
+export async function readTrack(id) {
+  let h; try { h = await head(trackPath(id)); } catch { return null; }
+  const r = await fetch(h.url + "?v=" + Date.now(), { cache: "no-store" });
+  if (!r.ok) return null;
+  try { return { url: h.url, doc: await r.json() }; } catch { return null; }
+}
+export async function writeTrack(doc) {
+  doc.up = new Date().toISOString();
+  const b = await put(trackPath(doc.id), JSON.stringify(doc), { access: "public", addRandomSuffix: false, allowOverwrite: true, contentType: "application/json", cacheControlMaxAge: 60 });
+  return b.url;
+}
+async function findOrder(id) {
+  const f = (await listAll("orders/")).filter((b) => new RegExp(`^orders/\\d+-${id}`).test(b.pathname));
+  for (const b of f) { try { const r = await fetch(b.url); if (r.ok) return open(await r.text()); } catch {} }
+  return null;
+}
+// Change the tracking file: fn(doc) edits it. Orders from before tracking existed get a file made on first change.
+export async function updateTrack(id, fn) {
+  let t = await readTrack(id), doc = t && t.doc;
+  if (!doc) { const o = await findOrder(id); if (!o) return null; doc = trackFromOrder(o); }
+  fn(doc);
+  return writeTrack(doc);
+}
+export async function setEta(id, eta) {
+  await put(`oeta/${id}/${ts()}-${eta ? Date.parse(eta) : 0}.json`, "{}", { access: "public", addRandomSuffix: true, contentType: "application/json" });
 }

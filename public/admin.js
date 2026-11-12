@@ -363,7 +363,9 @@ start().catch((e) => { if (e.status !== 401) showLogin(); });
 /* ---------- Orders ---------- */
 // Every "Send order on WhatsApp" tap in the catalogue is saved here with its order number.
 let ORD = null, OF = { q: "", st: "all", per: "all" };
-const ST = { new: "New", confirmed: "Confirmed", delivered: "Delivered", cancelled: "Cancelled" };
+const ST = { new: "New", confirmed: "Confirmed", preparing: "Preparing", out: "Out for delivery", delivered: "Delivered", cancelled: "Cancelled" };
+// For the date-and-time box: an ISO time shown in this computer's local time.
+const localDT = (iso) => { if (!iso) return ""; const d = new Date(iso); return new Date(d - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 16); };
 let OCHK = null, OERR = false;
 async function loadOrders() {
   try { ORD = (await api("/api/admin/orders")).orders; OCHK = new Date(); OERR = false; }
@@ -384,7 +386,7 @@ function renderOrders() {
 <select id="ost" aria-label="Status"><option value="all">All statuses</option>${Object.keys(ST).map((s) => `<option value="${s}">${ST[s]}</option>`).join("")}</select>
 <select id="oper" aria-label="Period"><option value="all">Any time</option><option value="1">Today</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option></select>
 <button class="btn" id="oref">↻ Refresh</button><span class="mu sm" id="ochk">${OERR ? "⚠ Could not reach the server" : OCHK ? "Checked " + OCHK.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : ""}</span><button class="btn pri" id="pfnew">+ New proforma</button></div><div id="olist"></div>
-<p class="mu sm">An order is saved when a customer taps "Send order on WhatsApp". If they then don't send the message, mark it Cancelled.</p><div id="pflist"></div>`;
+<p class="mu sm">An order is saved when a customer taps "Send order on WhatsApp". If they then don't send the message, mark it Cancelled. The client sees each status and the expected delivery time live in "My orders" in the app.</p><div id="pflist"></div>`;
   $("ost").value = OF.st; $("oper").value = OF.per;
   $("oq").oninput = (e) => { OF.q = e.target.value; list(); };
   $("ost").onchange = (e) => { OF.st = e.target.value; list(); };
@@ -399,11 +401,19 @@ function renderOrders() {
     toast(d > 0 ? `${d} new order${d > 1 ? "s" : ""}.` : `Up to date: ${ORD.length} order${ORD.length === 1 ? "" : "s"}.`);
   };
   $("olist").onchange = async (e) => {
+    const et = e.target.closest("input[data-eta]");
+    if (et) {
+      const o = ORD.find((x) => x.id === et.dataset.eta), v = et.value ? new Date(et.value).toISOString() : "";
+      et.disabled = true;
+      try { await api("/api/admin/orders", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: o.id, eta: v }) }); o.eta = v; toast(v ? `Order #${o.id}: delivery expected ${when(v)}. The client sees it now.` : `Order #${o.id}: delivery time cleared.`); }
+      catch (err) { et.value = localDT(o.eta); if (err.status !== 401) toast("Could not save the delivery time. Try again."); }
+      et.disabled = false; return;
+    }
     const sel = e.target.closest("select[data-o]"); if (!sel) return;
     const o = ORD.find((x) => x.id === sel.dataset.o), old = o.status;
     sel.disabled = true;
-    try { await api("/api/admin/orders", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: o.id, status: sel.value }) }); o.status = sel.value; toast(`Order #${o.id} marked ${ST[o.status]}.`); }
-    catch (err) { sel.value = old; toast("Could not change the status. Try again."); }
+    try { const r = await api("/api/admin/orders", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: o.id, status: sel.value }) }); o.status = sel.value; toast(`Order #${o.id} marked ${ST[o.status]}.` + (r.tracked ? " The client sees it now." : "")); }
+    catch (err) { sel.value = old; if (err.status !== 401) toast("Could not change the status. Try again."); }
     $("obadge").hidden = !cnt("new"); $("obadge").textContent = cnt("new");
     renderOrders();
   };
@@ -417,7 +427,7 @@ function renderOrders() {
       return `<article class="ord ${o.status}"><div><h3>Order #${esc(o.id)} <span class="st-${o.status} sm">● ${ST[o.status]}</span></h3>
 <ul>${o.items.map((i) => `<li>${i.q} × ${esc(i.n)} <span class="mu sm">${esc(i.id)}${i.p ? " · " + usd(i.p) : ""}</span></li>`).join("")}</ul></div>
 <div style="text-align:end"><b style="font-size:17px">${o.total != null ? usd(o.total) : '<span class="mu sm">No total (prices missing)</span>'}</b><br>
-<select data-o="${esc(o.id)}" aria-label="Status of order ${esc(o.id)}" style="margin-top:6px">${Object.keys(ST).map((s) => `<option value="${s}" ${s === o.status ? "selected" : ""}>${ST[s]}</option>`).join("")}</select><br><button class="btn" data-pf="${esc(o.id)}" style="margin-top:6px">📄 Proforma</button></div>
+<select data-o="${esc(o.id)}" aria-label="Status of order ${esc(o.id)}" style="margin-top:6px">${Object.keys(ST).map((s) => `<option value="${s}" ${s === o.status ? "selected" : ""}>${ST[s]}</option>`).join("")}</select><br><label class="eta">Delivery expected<input type="datetime-local" data-eta="${esc(o.id)}" value="${localDT(o.eta)}" aria-label="Expected delivery of order ${esc(o.id)}"></label><button class="btn" data-pf="${esc(o.id)}" style="margin-top:6px">📄 Proforma</button></div>
 <div class="meta"><span>🕒 ${when(o.at)}</span><span>👤 ${esc(o.name || "No name given")}</span>${o.phone ? `<span>📞 <a href="https://wa.me/${esc(tel)}" target="_blank" rel="noopener">${esc(o.phone)}</a></span>` : ""}${o.addr ? `<span>📍 ${esc(o.addr)}</span>` : ""}<span>${o.lang === "ar" ? "Arabic" : "English"}</span></div></article>`;
     }).join("") : `<div class="panel"><p class="mu" style="margin:0">${ORD.length ? "No orders match these filters." : "No orders yet. They appear here when customers send an order from the catalogue."}</p></div>`;
   }

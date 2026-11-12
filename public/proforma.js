@@ -161,9 +161,14 @@ async function pfShow(d) {
   const total = money2(pfSums(d).total);
   const msg = `Hello${d.client.name ? " " + d.client.name : ""}, please find attached our proforma ${d.no}${d.order ? " for order #" + d.order : ""}. Total: ${total}. Valid for ${d.valid} days. Thank you, ${(d.cfg && d.cfg.co) || "Oxinab"}.`;
   const canShare = navigator.canShare && navigator.canShare({ files: [file] });
-  $("pfact").innerHTML = `<a class="btn pri" href="${url}" download="${esc(name)}">⬇ Download PDF</a>${canShare ? `<button class="btn pri" id="pfshare">Share PDF (WhatsApp…)</button>` : ""}${tel ? `<a class="btn" target="_blank" rel="noopener" href="https://wa.me/${esc(tel)}?text=${encodeURIComponent(msg)}">Open WhatsApp chat with client</a>` : ""}<button class="btn" id="pfcopy">Copy message</button>`;
+  $("pfact").innerHTML = `<a class="btn pri" href="${url}" download="${esc(name)}">⬇ Download PDF</a>${canShare ? `<button class="btn pri" id="pfshare">Share PDF (WhatsApp…)</button>` : ""}${tel ? `<a class="btn" target="_blank" rel="noopener" href="https://wa.me/${esc(tel)}?text=${encodeURIComponent(msg)}">Open WhatsApp chat with client</a>` : ""}<button class="btn" id="pfcopy">Copy message</button>${d.order ? `<button class="btn" id="pftrack">Add to client's order page</button>` : ""}`;
   $("pfhint").textContent = canShare ? "Share sends the PDF straight to WhatsApp or another app on this device." : "On a computer: download the PDF, then open the WhatsApp chat and attach it.";
   if (canShare) $("pfshare").onclick = async () => { try { await navigator.share({ files: [file], title: `Proforma ${d.no}`, text: msg }); } catch (e) {} };
+  if (d.order) $("pftrack").onclick = async () => {
+    const b = $("pftrack"); b.disabled = true; b.textContent = "Adding…";
+    try { await api(`/api/admin/upload?order=${encodeURIComponent(d.order)}&no=${encodeURIComponent(d.no)}`, { method: "POST", headers: { "content-type": "application/pdf" }, body: out.blob }); b.textContent = "✓ On the client's order page"; toast(`The client can now download ${d.no} from "My orders" in the app.`); }
+    catch (e) { b.disabled = false; b.textContent = "Add to client's order page"; if (e.status !== 401) toast(e.status === 404 ? "That order is not in the command center, so it has no order page." : "Could not add the proforma. Try again."); }
+  };
   $("pfcopy").onclick = async () => { try { await navigator.clipboard.writeText(msg); toast("Message copied."); } catch (e) { toast(msg); } };
 }
 

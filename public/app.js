@@ -23,6 +23,14 @@ Object.assign(TR,{"Out of stock":"غير متوفر","left":"متبقٍ فقط",
 "Install Oxinab on your iPhone":"ثبّت أوكسيناب على الآيفون","Tap the Share button at the bottom of Safari.":"اضغط على زر المشاركة أسفل Safari.","Choose Add to Home Screen, then Add.":"اختر «إضافة إلى الشاشة الرئيسية» ثم «إضافة».","Open Oxinab from your home screen.":"افتح أوكسيناب من الشاشة الرئيسية.","OK":"حسناً",
 "To get offers on iPhone, first add Oxinab to your home screen, then open it from there.":"لتلقي العروض على الآيفون، أضف أوكسيناب أولاً إلى الشاشة الرئيسية ثم افتحه من هناك.",
 "You will get Oxinab offers on this phone.":"ستصلك عروض أوكسيناب على هذا الهاتف.","Notifications are blocked. Allow them in your phone settings for this site.":"الإشعارات محظورة. اسمح بها من إعدادات الهاتف لهذا الموقع.","Could not turn on offers. Please try again.":"تعذّر تفعيل العروض. حاول مرة أخرى.","Offers turned off on this phone.":"تم إيقاف العروض على هذا الهاتف."});
+Object.assign(TR,{"My orders":"طلباتي","Received":"تم الاستلام","Confirmed":"تم التأكيد","Preparing":"قيد التحضير","Out for delivery":"خرج للتوصيل","Delivered":"تم التوصيل","Cancelled":"ملغى",
+"Expected delivery":"موعد التوصيل المتوقع","Ask about this order":"استفسر عن هذا الطلب","Download proforma":"تحميل عرض السعر","Items and total":"المنتجات والمجموع","Total":"المجموع",
+"Live":"مباشر","This order was cancelled. Message us on WhatsApp if this is a mistake.":"تم إلغاء هذا الطلب. راسلنا على واتساب إذا كان ذلك خطأ.",
+"No orders on this phone yet. Orders you send from the app appear here, and you can follow them live.":"لا توجد طلبات على هذا الهاتف بعد. الطلبات التي ترسلها من التطبيق تظهر هنا ويمكنك متابعتها مباشرة.",
+"Find an order":"ابحث عن طلب","Sent from another phone? Enter the order number and the phone number you gave.":"أرسلته من هاتف آخر؟ أدخل رقم الطلب ورقم الهاتف الذي أعطيته.",
+"Order number":"رقم الطلب","Find":"بحث","Order not found. Check the order number and phone number.":"لم يتم العثور على الطلب. تحقّق من رقم الطلب ورقم الهاتف.",
+"Too many tries. Please wait a few minutes.":"محاولات كثيرة. يرجى الانتظار بضع دقائق.","Could not connect. Check your internet.":"تعذّر الاتصال. تحقّق من الإنترنت.",
+"Updated":"آخر تحديث","Back":"رجوع","We are getting your order ready.":"نقوم بتجهيز طلبك.","Prices to be confirmed":"الأسعار تُؤكَّد لاحقاً"});
 const TITLE='Oxinab Catalogue', CUR='$';
 let D=null,CATS=[],P=[],byId={},cnt=[],SHOW_PRICES=false,WA='96176878113',LOW=0;
 let LANG='en';try{LANG=localStorage.getItem('oxl')||((navigator.language||'').slice(0,2)==='ar'?'ar':'en')}catch(e){}
@@ -44,7 +52,7 @@ function stat(){
  const h=document.documentElement;h.lang=LANG;h.dir=LANG==='ar'?'rtl':'ltr';
  const w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);let n;
  while(n=w.nextNode()){
-  if(n.parentElement.closest('script,style,#ptrack,#pdots,#g,#chips,#tabs,#ci,#tt,#cnt,#gi,#cn,#upd,.sheet,.toast'))continue;
+  if(n.parentElement.closest('script,style,#ptrack,#pdots,#trk,#g,#chips,#tabs,#ci,#tt,#cnt,#gi,#cn,#upd,.sheet,.toast'))continue;
   if(n._o===undefined)n._o=n.nodeValue;
   const k=n._o.trim();if(!k)continue;
   n.nodeValue=LANG==='ar'&&TR[k]?n._o.replace(k,t(k)):n._o;
@@ -56,7 +64,7 @@ function stat(){
  document.title=t(TITLE);updTxt();$('lg').textContent=LANG==='ar'?'EN':'عربي';
 }
 function setLang(){LANG=LANG==='ar'?'en':'ar';try{localStorage.setItem('oxl',LANG)}catch(e){}stat();all()}
-function all(){if(!D)return;promo();chips();draw();drawCart()}
+function all(){if(!D)return;promo();chips();draw();drawCart();trkDraw()}
 
 function load(d){
  D=d;CATS=d.cats;SHOW_PRICES=!!d.set.price;WA=d.set.wa||WA;LOW=d.set.low||0;
@@ -138,7 +146,7 @@ async function flushOrders(minAge){
  try{for(const o of obx()){
   if(Date.now()-o.t<(minAge||0))continue;
   try{const r=await fetch('/api/order',{method:'POST',headers:{'content-type':'application/json'},body:o.body});
-   if(r.ok||(r.status>=400&&r.status<500&&r.status!==429))obxSet(obx().filter(x=>x.id!==o.id));}catch(e){break}
+   if(r.ok){try{remember(o.id,(await r.json()).u)}catch(e){}}if(r.ok||(r.status>=400&&r.status<500&&r.status!==429))obxSet(obx().filter(x=>x.id!==o.id));}catch(e){break}
  }}finally{flushing=false}
 }
 /* Tapping Send first saves the order on the server (up to 3 seconds), says so on screen, then opens WhatsApp.
@@ -152,9 +160,9 @@ $('wa').addEventListener('click',async e=>{
  let ok=false;
  try{const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),3000);
   const r=await fetch('/api/order',{method:'POST',headers:{'content-type':'application/json'},body,keepalive:true,signal:ac.signal});clearTimeout(tm);
-  if(r.ok){ok=true;obxSet(obx().filter(x=>x.id!==id))}else diag('order_http_'+r.status);
+  if(r.ok){ok=true;obxSet(obx().filter(x=>x.id!==id));try{const j=await r.json();remember(id,j.u)}catch(e){}}else diag('order_http_'+r.status);
  }catch(err){diag('order_net_'+(err&&err.name||'err'))}
- toast(ok?(LANG==='ar'?'تم استلام الطلب رقم '+id:'Order #'+id+' received'):(LANG==='ar'?'الطلب محفوظ على هاتفك وسيُرسل لاحقاً':'Order saved on your phone, it will be sent when you are back online'));
+ toast(ok?(LANG==='ar'?'تم استلام الطلب رقم '+id+'. تابعه في «طلباتي».':'Order #'+id+' received. Follow it in My orders.'):(LANG==='ar'?'الطلب محفوظ على هاتفك وسيُرسل لاحقاً':'Order saved on your phone, it will be sent when you are back online'));
  OID=newOID();sending=false;
  setTimeout(()=>{location.href=href;drawCart()},ok?600:1200);
 });
@@ -236,3 +244,82 @@ $('ntf').onclick=async()=>{
  }catch(e){toast(t('Could not turn on offers. Please try again.'))}
 };
 ntfState();
+
+/* ===== My orders: live tracking =====
+   The phone remembers the orders it sent (number + tracking address). The screen re-checks every few seconds
+   while it is open, so a status change in the command center shows up almost at once. */
+const OXO='oxo',STEPS=['new','confirmed','preparing','out','delivered'];
+const SNAME={new:'Received',confirmed:'Confirmed',preparing:'Preparing',out:'Out for delivery',delivered:'Delivered',cancelled:'Cancelled'};
+const SICON={new:'✓',confirmed:'✓',preparing:'📦',out:'🚚',delivered:'🏠'};
+const mine=()=>{try{return JSON.parse(localStorage.getItem(OXO)||'[]')}catch(e){return []}};
+const mineSet=a=>{try{localStorage.setItem(OXO,JSON.stringify(a.slice(0,30)))}catch(e){}};
+function remember(id,u,d){if(!u)return;const a=mine().filter(x=>x.id!==id);a.unshift({id,u,at:Date.now(),d:d||null,seen:d?d.status:'new'});a.sort((x,y)=>y.at-x.at);mineSet(a)}
+const active=o=>!o.d||!['delivered','cancelled'].includes(o.d.status);
+const fdt=iso=>{try{return new Date(iso).toLocaleString(LANG==='ar'?'ar-LB':'en-GB',{weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit'})}catch(e){return iso}};
+const ftm=iso=>{try{const d=new Date(iso),td=new Date().toDateString()===d.toDateString();return d.toLocaleString(LANG==='ar'?'ar-LB':'en-GB',td?{hour:'numeric',minute:'2-digit'}:{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'})}catch(e){return ''}};
+let trkT=null,trkLast=0;
+async function trkFetch(o){
+ const r=await fetch('/api/order?u='+encodeURIComponent(o.u),{cache:'no-store'});
+ if(!r.ok)throw r.status;return (await r.json()).order;
+}
+async function trkPoll(only){
+ const a=mine();let changed=[];
+ await Promise.all(a.filter(o=>only||active(o)).map(async o=>{try{const d=await trkFetch(o);if(o.d&&o.d.status!==d.status)changed.push(o.id);o.d=d}catch(e){}}));
+ const cur=mine();cur.forEach(x=>{const y=a.find(z=>z.id===x.id);if(y&&y.d)x.d=y.d});mineSet(cur);trkLast=Date.now();
+ return changed;
+}
+function trkDot(){const a=mine();$('mdot').hidden=!a.some(o=>o.d&&o.d.status!==o.seen)}
+function step(d){
+ const k=STEPS.indexOf(d.status);
+ return '<ol class="tl" aria-label="'+t('My orders')+'">'+STEPS.map((s,i)=>{const c=d.status==='cancelled'?(d.steps[s]?'done':''):i<k?'done':i===k?(s==='delivered'?'done':'cur'):'';
+  return `<li class="${c}"${c==='cur'?' aria-current="step"':''}><span class="dt" aria-hidden="true">${c?SICON[s]:''}</span><b>${t(SNAME[s])}</b>${d.steps[s]?`<small dir="ltr">${ftm(d.steps[s])}</small>`:''}</li>`}).join('')+'</ol>';
+}
+function tcard(o){
+ const d=o.d;if(!d)return `<article class="tc"><div class="tc-h"><h3>${LANG==='ar'?'طلب رقم ':'Order #'}${esc(o.id)}</h3></div><p class="mu">…</p></article>`;
+ const priced=d.total!=null,wa='https://wa.me/'+WA+'?text='+encodeURIComponent((LANG==='ar'?'مرحباً أوكسيناب، لدي سؤال عن الطلب رقم ':'Hello Oxinab, I have a question about order #')+d.id);
+ return `<article class="tc" data-id="${esc(d.id)}"><div class="tc-h"><div><h3>${LANG==='ar'?'طلب رقم ':'Order #'}<span dir="ltr">${esc(d.id)}</span></h3><span class="mu" dir="ltr">${fdt(d.at)}</span></div><span class="pill ${d.status}">${t(SNAME[d.status]||d.status)}</span></div>`
+ +(d.status==='cancelled'?`<div class="tc-x">${t('This order was cancelled. Message us on WhatsApp if this is a mistake.')}</div>`:'')
+ +step(d)
+ +(d.eta&&!['delivered','cancelled'].includes(d.status)?`<div class="tc-eta"><span aria-hidden="true" style="font-size:22px">🚚</span><div><span class="mu sm">${t('Expected delivery')}</span><b>${fdt(d.eta)}</b></div></div>`:'')
+ +`<details><summary>${t('Items and total')} (${d.items.reduce((a,i)=>a+i.q,0)})</summary><ul>${d.items.map(i=>{const p=byId[i.id];return `<li class="ln"><span>${esc(p?nm(p):i.n)}</span><span dir="ltr">× ${i.q}${SHOW_PRICES&&i.p?' · '+money(i.p*i.q):''}</span></li>`}).join('')}</ul>${SHOW_PRICES&&priced?`<div class="tot"><span>${t('Total')}</span><span dir="ltr">${money(d.total)}</span></div>`:''}</details>`
+ +`<div class="tc-a">${d.pf?`<a class="pf" href="${esc(d.pf.url)}" target="_blank" rel="noopener" download>⬇ ${t('Download proforma')} <span dir="ltr">${esc(d.pf.no)}</span></a>`:''}<a class="wa" href="${wa}" target="_blank" rel="noopener">💬 ${t('Ask about this order')}</a></div></article>`;
+}
+function trkDraw(){
+ const el=$('trk');if(el.hidden)return;const a=mine();
+ const keep=el.querySelector('#trkq')?{q:el.querySelector('#trkq').value,p:el.querySelector('#trkp').value,m:el.querySelector('#trkm').textContent}:null;
+ const open=new Set([...el.querySelectorAll('details[open]')].map(x=>x.closest('.tc').dataset.id));
+ el.innerHTML=`<div class="trk-h"><div class="wrap"><button id="trkx" aria-label="${t('Back')}">${LANG==='ar'?'→':'←'}</button><h2 id="trkt">${t('My orders')}</h2>${a.some(active)?`<span class="trk-live"><i></i>${t('Live')}</span>`:''}</div></div><div class="wrap">`
+ +(a.length?a.map(tcard).join(''):`<div class="trk-e"><span aria-hidden="true">📦</span>${t('No orders on this phone yet. Orders you send from the app appear here, and you can follow them live.')}</div>`)
+ +(trkLast?`<p class="tc-u">${t('Updated')}: <span dir="ltr">${new Date(trkLast).toLocaleTimeString(LANG==='ar'?'ar-LB':'en-GB',{hour:'numeric',minute:'2-digit',second:'2-digit'})}</span></p>`:'')
+ +`<div class="trk-f"><h3>${t('Find an order')}</h3><p>${t('Sent from another phone? Enter the order number and the phone number you gave.')}</p><form id="trkfm"><input id="trkq" placeholder="${t('Order number')}" autocomplete="off" autocapitalize="characters" maxlength="7" dir="ltr" aria-label="${t('Order number')}"><input id="trkp" type="tel" placeholder="${t('Phone number')}" dir="ltr" aria-label="${t('Phone number')}" value="${esc(who().phone)}"><button>${t('Find')}</button></form><p id="trkm" role="status" style="margin:8px 0 0"></p></div></div>`;
+ if(keep){$('trkq').value=keep.q;$('trkp').value=keep.p;$('trkm').textContent=keep.m}
+ el.querySelectorAll('.tc').forEach(c=>{if(open.has(c.dataset.id))c.querySelector('details').open=true});
+ // seen: the red dot goes away once the client has looked
+ const m=mine();m.forEach(o=>{if(o.d)o.seen=o.d.status});mineSet(m);trkDot();
+}
+async function trkTick(){if($('trk').hidden||document.hidden)return;const ch=await trkPoll();trkDraw();ch.forEach(id=>{const o=mine().find(x=>x.id===id);if(o&&o.d)hint(o)})}
+function hint(o){toast((LANG==='ar'?'الطلب رقم ':'Order #')+o.id+': '+t(SNAME[o.d.status]||o.d.status))}
+function trkOpen(){
+ const el=$('trk');el.hidden=false;document.body.style.overflow='hidden';trkDraw();
+ trkPoll(true).then(trkDraw);clearInterval(trkT);trkT=setInterval(trkTick,8000);
+ if(location.hash!=='#orders')history.pushState(null,'','#orders');
+}
+function trkClose(){const el=$('trk');if(el.hidden)return;el.hidden=true;document.body.style.overflow='';clearInterval(trkT);if(location.hash==='#orders')history.back()}
+$('mo').onclick=trkOpen;
+$('trk').addEventListener('click',e=>{if(e.target.closest('#trkx'))trkClose()});
+addEventListener('popstate',()=>{if(location.hash!=='#orders'&&!$('trk').hidden){const el=$('trk');el.hidden=true;document.body.style.overflow='';clearInterval(trkT)}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')trkClose()});
+$('trk').addEventListener('submit',async e=>{
+ e.preventDefault();const id=$('trkq').value.trim().toUpperCase().replace(/^#/,''),ph=$('trkp').value.trim(),msg=$('trkm');
+ if(!id||!ph)return;msg.textContent='…';
+ try{const r=await fetch('/api/order?id='+encodeURIComponent(id)+'&phone='+encodeURIComponent(ph),{cache:'no-store'});
+  if(r.status===429){msg.textContent=t('Too many tries. Please wait a few minutes.');return}
+  if(!r.ok){msg.textContent=t('Order not found. Check the order number and phone number.');return}
+  const j=await r.json();remember(j.order.id,j.u,j.order);msg.textContent='';$('trkq').value='';trkDraw();
+ }catch(err){msg.textContent=t('Could not connect. Check your internet.')}
+});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!$('trk').hidden)trkTick()});
+if(location.hash==='#orders')setTimeout(trkOpen,0);
+// When the app opens: check orders still on their way, and point out any change.
+setTimeout(async()=>{if(!mine().some(active))return;const ch=await trkPoll();trkDot();if($('trk').hidden)ch.forEach(id=>{const o=mine().find(x=>x.id===id);if(o&&o.d)hint(o)})},3200);
+trkDot();

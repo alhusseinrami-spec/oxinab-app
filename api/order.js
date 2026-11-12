@@ -1,7 +1,7 @@
 // A customer tapped "Send order on WhatsApp": keep a copy of the order for the command center.
 import { json, blobReady, loadCatalog, sameOrigin } from "./_lib.js";
 import { list, put } from "@vercel/blob";
-import { saveOrder, ORDER_ID } from "./_orders.js";
+import { saveOrder, ORDER_ID, trackPath, TRACK_PATH, trackFromOrder, readTrack, writeTrack, phoneKey } from "./_orders.js";
 
 const hits = new Map(); // best effort, per server instance: at most 20 orders an hour from one address
 const str = (v, max) => (typeof v === "string" ? v.replace(/\s+/g, " ").trim().slice(0, max) : "");
@@ -35,9 +35,48 @@ export async function POST(req) {
     items, total: priced ? Math.round(items.reduce((s, i) => s + i.p * i.q, 0) * 100) / 100 : null,
   };
   // The phone may send the same order twice (beacon, then a confirming retry): keep it once.
-  if ((await list({ prefix: `oid/${id}`, limit: 1 })).blobs.length) { console.log("order.duplicate", id); return json({ ok: true, id, dup: true }); }
+  if ((await list({ prefix: `oid/${id}`, limit: 1 })).blobs.length) {
+    console.log("order.duplicate", id);
+    const t = await readTrack(id).catch(() => null);
+    return json({ ok: true, id, dup: true, u: t ? t.url : "" });
+  }
   await saveOrder(order);
   await put(`oid/${id}.json`, "{}", { access: "public", addRandomSuffix: true, contentType: "application/json" });
+  let u = "";
+  try { u = await writeTrack(trackFromOrder(order)); } catch (e) { console.error("track.create_failed", id, e && e.message); }
   console.log("order.saved", id, items.length, "items");
-  return json({ ok: true, id });
+  return json({ ok: true, id, u });
+}
+
+/* The client's "My orders" screen.
+   ?u=<tracking file address>  → the latest progress of that order (the phone remembers this address for its own orders).
+   ?id=<order number>&phone=<number> → finds an order sent from another phone; both must match. */
+const looks = new Map(), finds = new Map();
+const pub = ({ ph, ...d }) => d;
+export async function GET(req) {
+  if (!blobReady()) return json({ error: "storage_not_connected" }, 503);
+  const ip = (req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || "?";
+  const now = Date.now(), h = (looks.get(ip) || []).filter((t) => t > now - 3600e3);
+  if (h.length >= 900) return json({ error: "too_many" }, 429);
+  looks.set(ip, [...h, now]);
+  const q = new URL(req.url).searchParams;
+  const u = q.get("u");
+  if (u) {
+    let url; try { url = new URL(u); } catch { return json({ error: "bad_url" }, 400); }
+    const m = url.pathname.match(TRACK_PATH);
+    if (url.protocol !== "https:" || !url.hostname.endsWith(".public.blob.vercel-storage.com") || !m || url.pathname !== "/" + trackPath(m[1])) return json({ error: "bad_url" }, 400);
+    const r = await fetch(url.origin + url.pathname + "?v=" + now, { cache: "no-store" });
+    if (!r.ok) return json({ error: "not_found" }, 404);
+    return json({ order: pub(await r.json()), u: url.origin + url.pathname });
+  }
+  const id = String(q.get("id") || "").trim().toUpperCase().replace(/^#/, "");
+  const ph = phoneKey(q.get("phone"));
+  if (!ORDER_ID.test(id) || !ph) return json({ error: "bad_request" }, 400);
+  // Guessing order numbers and phones: at most 15 lookups per 10 minutes from one address.
+  const f = (finds.get(ip) || []).filter((t) => t > now - 600e3);
+  if (f.length >= 15) return json({ error: "too_many" }, 429);
+  finds.set(ip, [...f, now]);
+  const t = await readTrack(id);
+  if (!t || !t.doc.ph || t.doc.ph !== ph) return json({ error: "not_found" }, 404);
+  return json({ order: pub(t.doc), u: t.url });
 }
