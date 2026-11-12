@@ -4,6 +4,7 @@
 import { createHash, createHmac, createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import { put, head } from "@vercel/blob";
 import { listAll } from "./_lib.js";
+import { kvOn, kvGet, kvSet } from "./_kv.js";
 
 // "new" is shown to clients as "Received". "out" is "Out for delivery".
 export const STATUSES = ["new", "confirmed", "preparing", "out", "delivered", "cancelled"];
@@ -75,17 +76,20 @@ export const trackFromOrder = (o) => ({
   status: "new", steps: { new: o.at }, eta: "", pf: null, ph: phoneKey(o.phone), up: new Date().toISOString(),
 });
 export async function readTrack(id) {
+  if (kvOn()) { const d = await kvGet("trk:" + id); if (d) return { url: trackPath(id), doc: d }; }
   let h; try { h = await head(trackPath(id)); } catch { return null; }
   const r = await fetch(h.url + "?v=" + Date.now(), { cache: "no-store" });
   if (!r.ok) return null;
   try { return { url: h.url, doc: await r.json() }; } catch { return null; }
 }
+// Returns the address the client's phone keeps for this order (only its file name part is used to find it again).
 export async function writeTrack(doc) {
   doc.up = new Date().toISOString();
+  if (kvOn()) { await kvSet("trk:" + doc.id, doc, 120 * 864e2); return trackPath(doc.id); }
   const b = await put(trackPath(doc.id), JSON.stringify(doc), { access: "public", addRandomSuffix: false, allowOverwrite: true, contentType: "application/json", cacheControlMaxAge: 60 });
   return b.url;
 }
-async function findOrder(id) {
+export async function findOrder(id) {
   const f = (await listAll("orders/")).filter((b) => new RegExp(`^orders/\\d+-${id}`).test(b.pathname));
   for (const b of f) { try { const r = await fetch(b.url); if (r.ok) return open(await r.text()); } catch {} }
   return null;
@@ -99,4 +103,33 @@ export async function updateTrack(id, fn) {
 }
 export async function setEta(id, eta) {
   await put(`oeta/${id}/${ts()}-${eta ? Date.parse(eta) : 0}.json`, "{}", { access: "public", addRandomSuffix: true, contentType: "application/json" });
+}
+
+/* ---------- Small shared records: the drivers, and which driver delivers which order ----------
+   Kept in Redis when it is connected, otherwise in one encrypted file each. */
+export async function getState(k) {
+  if (kvOn()) return kvGet("st:" + k);
+  try { const h = await head(`state/${k}.json`); const r = await fetch(h.url + "?v=" + Date.now(), { cache: "no-store" }); return r.ok ? open(await r.text()) : null; } catch { return null; }
+}
+export async function setState(k, v) {
+  if (kvOn()) return kvSet("st:" + k, v);
+  await put(`state/${k}.json`, seal(v), { access: "public", addRandomSuffix: false, allowOverwrite: true, contentType: "application/json", cacheControlMaxAge: 60 });
+}
+// Set an order's status everywhere: the command center's log, the client's tracking page and the driver's list.
+export async function applyStatus(id, status) {
+  await setStatus(id, status);
+  const tracked = await updateTrack(id, (d) => {
+    if (d.status === status) return;
+    const now = new Date().toISOString();
+    d.status = status;
+    if (status !== "cancelled") {
+      // Moving back a step clears the later steps; moving forward fills any skipped step with the same time.
+      const k = STEPS.indexOf(status);
+      STEPS.forEach((s, i) => { if (i > k) delete d.steps[s]; else if (!d.steps[s]) d.steps[s] = now; });
+      delete d.steps.cancelled;
+    } else d.steps.cancelled = now;
+  }).catch((e) => { console.error("track.update_failed", id, e && e.message); return null; });
+  const as = await getState("assign");
+  if (as && as[id] && as[id].st !== status) { as[id].st = status; as[id].stAt = Date.now(); await setState("assign", as); }
+  return !!tracked;
 }

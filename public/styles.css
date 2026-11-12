@@ -187,3 +187,12 @@ html[dir=rtl] .tl li.done:before,html[dir=rtl] .tl li.cur:before{background:line
 .trk-e{text-align:center;padding:30px 10px;color:var(--mu)}.trk-e span{font-size:40px;display:block}
 @media(max-width:420px){.tl li{font-size:10.5px}.tl .dt{width:26px;height:26px}.tl li:before{top:11px}}
 @media(prefers-reduced-motion:reduce){.trk,.tl li.cur .dt,.trk-live i{animation:none}}
+
+/* Driver on the way: live map */
+.tc-drv{margin-top:12px;border:1.5px solid #cfe3f7;border-radius:14px;padding:10px;background:linear-gradient(180deg,var(--soft),transparent)}
+.tc-dh{display:flex;align-items:center;gap:10px}.tc-dh>div{flex:1;min-width:0}.tc-dh small{display:block}
+.tc-av{width:40px;height:40px;border-radius:50%;background:#0573c4;display:grid;place-items:center;font-size:20px;flex:none}
+.tc-call{width:42px;height:42px;border-radius:50%;background:#1fa855;display:grid;place-items:center;text-decoration:none;font-size:19px;flex:none}
+.tmap{height:230px;border-radius:12px;margin-top:10px;overflow:hidden;z-index:0;background:#dde7f2}
+.drv-pin span{display:grid;place-items:center;width:44px;height:44px;border-radius:50%;background:#fff;border:3px solid #0573c4;font-size:22px;box-shadow:0 4px 14px rgba(0,23,101,.35);animation:pulse 1.8s ease-out infinite}
+@media(prefers-reduced-motion:reduce){.drv-pin span{animation:none}}

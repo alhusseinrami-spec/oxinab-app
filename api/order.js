@@ -1,6 +1,7 @@
 // A customer tapped "Send order on WhatsApp": keep a copy of the order for the command center.
 import { json, blobReady, loadCatalogFast as loadCatalog, sameOrigin } from "./_lib.js";
 import { list, put } from "@vercel/blob";
+import { kvOn, kvGet } from "./_kv.js";
 import { saveOrder, ORDER_ID, trackPath, TRACK_PATH, trackFromOrder, readTrack, writeTrack, phoneKey } from "./_orders.js";
 
 const hits = new Map(); // best effort, per server instance: at most 20 orders an hour from one address
@@ -53,21 +54,28 @@ export async function POST(req) {
    ?id=<order number>&phone=<number> → finds an order sent from another phone; both must match. */
 const looks = new Map(), finds = new Map();
 const pub = ({ ph, ...d }) => d;
+// While the order is out for delivery, add where its driver is (if they shared it in the last 3 minutes).
+async function withDriver(doc) {
+  const d = pub(doc);
+  if (d.driver) { const { id, ...rest } = d.driver; d.driver = rest; }
+  if (doc.status === "out" && doc.driver && kvOn()) { try { const l = await kvGet("loc:" + doc.driver.id); if (l) d.loc = { lat: l.lat, lng: l.lng, acc: l.acc, hd: l.hd, t: l.t }; } catch {} }
+  return d;
+}
 export async function GET(req) {
   if (!blobReady()) return json({ error: "storage_not_connected" }, 503);
   const ip = (req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || "?";
   const now = Date.now(), h = (looks.get(ip) || []).filter((t) => t > now - 3600e3);
-  if (h.length >= 900) return json({ error: "too_many" }, 429);
+  if (h.length >= 3000) return json({ error: "too_many" }, 429);
   looks.set(ip, [...h, now]);
   const q = new URL(req.url).searchParams;
   const u = q.get("u");
   if (u) {
-    let url; try { url = new URL(u); } catch { return json({ error: "bad_url" }, 400); }
-    const m = url.pathname.match(TRACK_PATH);
-    if (url.protocol !== "https:" || !url.hostname.endsWith(".public.blob.vercel-storage.com") || !m || url.pathname !== "/" + trackPath(m[1])) return json({ error: "bad_url" }, 400);
-    const r = await fetch(url.origin + url.pathname + "?v=" + now, { cache: "no-store" });
-    if (!r.ok) return json({ error: "not_found" }, 404);
-    return json({ order: pub(await r.json()), u: url.origin + url.pathname });
+    // The phone keeps the tracking address it got when the order was sent; only its last part is used.
+    const m = String(u).match(/track\/([A-Z0-9]{6})-([0-9a-f]{16})\.json$/);
+    if (!m || trackPath(m[1]) !== `track/${m[1]}-${m[2]}.json`) return json({ error: "bad_url" }, 400);
+    const t = await readTrack(m[1]);
+    if (!t) return json({ error: "not_found" }, 404);
+    return json({ order: await withDriver(t.doc), u, poll: kvOn() ? 8 : 30 });
   }
   const id = String(q.get("id") || "").trim().toUpperCase().replace(/^#/, "");
   const ph = phoneKey(q.get("phone"));
@@ -78,5 +86,5 @@ export async function GET(req) {
   finds.set(ip, [...f, now]);
   const t = await readTrack(id);
   if (!t || !t.doc.ph || t.doc.ph !== ph) return json({ error: "not_found" }, 404);
-  return json({ order: pub(t.doc), u: t.url });
+  return json({ order: await withDriver(t.doc), u: t.url, poll: kvOn() ? 8 : 30 });
 }

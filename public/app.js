@@ -30,7 +30,7 @@ Object.assign(TR,{"My orders":"طلباتي","Received":"تم الاستلام",
 "Find an order":"ابحث عن طلب","Sent from another phone? Enter the order number and the phone number you gave.":"أرسلته من هاتف آخر؟ أدخل رقم الطلب ورقم الهاتف الذي أعطيته.",
 "Order number":"رقم الطلب","Find":"بحث","Order not found. Check the order number and phone number.":"لم يتم العثور على الطلب. تحقّق من رقم الطلب ورقم الهاتف.",
 "Too many tries. Please wait a few minutes.":"محاولات كثيرة. يرجى الانتظار بضع دقائق.","Could not connect. Check your internet.":"تعذّر الاتصال. تحقّق من الإنترنت.",
-"Updated":"آخر تحديث","Back":"رجوع","We are getting your order ready.":"نقوم بتجهيز طلبك.","Prices to be confirmed":"الأسعار تُؤكَّد لاحقاً"});
+"Updated":"آخر تحديث","Back":"رجوع","Your driver":"السائق","is on the way":"في الطريق إليك","Call driver":"اتصل بالسائق","Waiting for the driver's location…":"بانتظار موقع السائق…","Driver's location":"موقع السائق","seconds ago":"ثانية مضت","minutes ago":"دقيقة مضت","We are getting your order ready.":"نقوم بتجهيز طلبك.","Prices to be confirmed":"الأسعار تُؤكَّد لاحقاً"});
 const TITLE='Oxinab Catalogue', CUR='$';
 let D=null,CATS=[],P=[],byId={},cnt=[],SHOW_PRICES=false,WA='96176878113',LOW=0;
 let LANG='en';try{LANG=localStorage.getItem('oxl')||((navigator.language||'').slice(0,2)==='ar'?'ar':'en')}catch(e){}
@@ -281,9 +281,33 @@ function tcard(o){
  +(d.status==='cancelled'?`<div class="tc-x">${t('This order was cancelled. Message us on WhatsApp if this is a mistake.')}</div>`:'')
  +step(d)
  +(d.eta&&!['delivered','cancelled'].includes(d.status)?`<div class="tc-eta"><span aria-hidden="true" style="font-size:22px">🚚</span><div><span class="mu sm">${t('Expected delivery')}</span><b>${fdt(d.eta)}</b></div></div>`:'')
- +`<details><summary>${t('Items and total')} (${d.items.reduce((a,i)=>a+i.q,0)})</summary><ul>${d.items.map(i=>{const p=byId[i.id];return `<li class="ln"><span>${esc(p?nm(p):i.n)}</span><span dir="ltr">× ${i.q}${SHOW_PRICES&&i.p?' · '+money(i.p*i.q):''}</span></li>`}).join('')}</ul>${SHOW_PRICES&&priced?`<div class="tot"><span>${t('Total')}</span><span dir="ltr">${money(d.total)}</span></div>`:''}</details>`
+ +(d.status==='out'&&d.driver?`<div class="tc-drv"><div class="tc-dh"><span class="tc-av" aria-hidden="true">🛵</span><div><b>${esc(d.driver.n)}</b> <span class="mu sm">${t('is on the way')}</span>${d.loc?`<small class="mu" data-ago="${d.loc.t}"></small>`:''}</div>${d.driver.tel?`<a class="tc-call" href="tel:+${esc(intlTel(d.driver.tel))}" aria-label="${t('Call driver')}">📞</a>`:''}</div>${d.loc?`<div class="tmap-slot" data-map="${esc(d.id)}"></div>`:`<p class="mu sm" style="margin:8px 0 0">${t("Waiting for the driver's location…")}</p>`}</div>`:'')
++`<details><summary>${t('Items and total')} (${d.items.reduce((a,i)=>a+i.q,0)})</summary><ul>${d.items.map(i=>{const p=byId[i.id];return `<li class="ln"><span>${esc(p?nm(p):i.n)}</span><span dir="ltr">× ${i.q}${SHOW_PRICES&&i.p?' · '+money(i.p*i.q):''}</span></li>`}).join('')}</ul>${SHOW_PRICES&&priced?`<div class="tot"><span>${t('Total')}</span><span dir="ltr">${money(d.total)}</span></div>`:''}</details>`
  +`<div class="tc-a">${d.pf?`<a class="pf" href="${esc(d.pf.url)}" target="_blank" rel="noopener" download>⬇ ${t('Download proforma')} <span dir="ltr">${esc(d.pf.no)}</span></a>`:''}<a class="wa" href="${wa}" target="_blank" rel="noopener">💬 ${t('Ask about this order')}</a></div></article>`;
 }
+const intlTel=p=>{let d=String(p||'').replace(/[^\d+]/g,'').replace(/^\+/,'').replace(/^00/,'');if(!d.startsWith('961'))d='961'+d.replace(/^0/,'');return d};
+/* Live map of the driver (Leaflet with OpenStreetMap, loaded only when a driver is on the way). Each map is kept between redraws. */
+const MAPS={};let LF=null;
+const loadLeaflet=()=>LF||(LF=new Promise((ok,no)=>{const c=document.createElement('link');c.rel='stylesheet';c.href='/vendor/leaflet/leaflet.css';document.head.appendChild(c);const s=document.createElement('script');s.src='/vendor/leaflet/leaflet.js';s.onload=ok;s.onerror=()=>{LF=null;no()};document.head.appendChild(s)}));
+async function drawMaps(){
+ const slots=[...$('trk').querySelectorAll('[data-map]')];
+ for(const k in MAPS)if(!slots.some(x=>x.dataset.map===k)){MAPS[k].map.remove();delete MAPS[k]}
+ if(!slots.length)return;
+ try{await loadLeaflet()}catch(e){return}
+ for(const sl of slots){
+  const id=sl.dataset.map,o=mine().find(x=>x.id===id),l=o&&o.d&&o.d.loc;if(!l)continue;
+  let m=MAPS[id];
+  if(!m){const el=document.createElement('div');el.className='tmap';el.setAttribute('role','img');el.setAttribute('aria-label',t("Driver's location"));
+   const map=L.map(el,{zoomControl:false,attributionControl:true}).setView([l.lat,l.lng],15);
+   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+   const mk=L.marker([l.lat,l.lng],{icon:L.divIcon({className:'drv-pin',html:'<span>🛵</span>',iconSize:[44,44],iconAnchor:[22,22]})}).addTo(map);
+   m=MAPS[id]={el,map,mk,ll:null}}
+  sl.replaceWith(m.el);m.map.invalidateSize();
+  const k=l.lat+','+l.lng;if(m.ll!==k){m.ll=k;m.mk.setLatLng([l.lat,l.lng]);if(!m.map.getBounds().pad(-.2).contains([l.lat,l.lng]))m.map.panTo([l.lat,l.lng],{animate:!RM.matches})}
+ }
+}
+function agoTick(){$('trk').querySelectorAll('[data-ago]').forEach(e=>{const s=Math.max(0,Math.round((Date.now()-+e.dataset.ago)/1000));e.textContent=' · '+(s<90?s+' '+t('seconds ago'):Math.round(s/60)+' '+t('minutes ago'))})}
+setInterval(()=>{if(!$('trk').hidden)agoTick()},1000);
 function trkDraw(){
  const el=$('trk');if(el.hidden)return;const a=mine();
  const keep=el.querySelector('#trkq')?{q:el.querySelector('#trkq').value,p:el.querySelector('#trkp').value,m:el.querySelector('#trkm').textContent}:null;
@@ -294,6 +318,7 @@ function trkDraw(){
  +`<div class="trk-f"><h3>${t('Find an order')}</h3><p>${t('Sent from another phone? Enter the order number and the phone number you gave.')}</p><form id="trkfm"><input id="trkq" placeholder="${t('Order number')}" autocomplete="off" autocapitalize="characters" maxlength="7" dir="ltr" aria-label="${t('Order number')}"><input id="trkp" type="tel" placeholder="${t('Phone number')}" dir="ltr" aria-label="${t('Phone number')}" value="${esc(who().phone)}"><button>${t('Find')}</button></form><p id="trkm" role="status" style="margin:8px 0 0"></p></div></div>`;
  if(keep){$('trkq').value=keep.q;$('trkp').value=keep.p;$('trkm').textContent=keep.m}
  el.querySelectorAll('.tc').forEach(c=>{if(open.has(c.dataset.id))c.querySelector('details').open=true});
+ drawMaps();agoTick();
  // seen: the red dot goes away once the client has looked
  const m=mine();m.forEach(o=>{if(o.d)o.seen=o.d.status});mineSet(m);trkDot();
 }
@@ -304,7 +329,7 @@ function trkOpen(){
  trkPoll(true).then(trkDraw);clearInterval(trkT);trkT=setInterval(trkTick,8000);
  if(location.hash!=='#orders')history.pushState(null,'','#orders');
 }
-function trkClose(){const el=$('trk');if(el.hidden)return;el.hidden=true;document.body.style.overflow='';clearInterval(trkT);if(location.hash==='#orders')history.back()}
+function trkClose(){const el=$('trk');if(el.hidden)return;for(const k in MAPS){MAPS[k].map.remove();delete MAPS[k]}el.hidden=true;document.body.style.overflow='';clearInterval(trkT);if(location.hash==='#orders')history.back()}
 $('mo').onclick=trkOpen;
 $('trk').addEventListener('click',e=>{if(e.target.closest('#trkx'))trkClose()});
 addEventListener('popstate',()=>{if(location.hash!=='#orders'&&!$('trk').hidden){const el=$('trk');el.hidden=true;document.body.style.overflow='';clearInterval(trkT)}});

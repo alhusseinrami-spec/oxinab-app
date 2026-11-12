@@ -55,6 +55,26 @@ export function isAdmin(req) {
   if (want.length !== sig.length || !timingSafeEqual(Buffer.from(want), Buffer.from(sig))) return false;
   return Number(exp) > Date.now();
 }
+/* ---------- Driver sign-in ----------
+   Drivers sign in with their phone number and a PIN the admin gives them. The cookie names the driver and a fingerprint
+   of their PIN, so a new PIN (or removing the driver) signs that driver out. */
+const DCOOKIE = "oxdv", DRIVER_DAYS = 30;
+export function driverCookie(id, pv) {
+  const exp = String(Date.now() + DRIVER_DAYS * 864e5), v = `${id}.${pv}.${exp}`;
+  return `${DCOOKIE}=${v}.${sign("drv:" + v)}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${DRIVER_DAYS * 86400}`;
+}
+export const clearDriverCookie = () => `${DCOOKIE}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0`;
+export function driverFromReq(req) {
+  if (!passwordConfigured()) return null;
+  const m = (req.headers.get("cookie") || "").match(/(?:^|;\s*)oxdv=([^;]+)/);
+  if (!m) return null;
+  const [id, pv, exp, sig] = m[1].split(".");
+  if (!id || !pv || !exp || !sig) return null;
+  const want = sign(`drv:${id}.${pv}.${exp}`);
+  if (want.length !== sig.length || !timingSafeEqual(Buffer.from(want), Buffer.from(sig))) return null;
+  return Number(exp) > Date.now() ? { id, pv } : null;
+}
+
 /* Admin writes must come from this site (blocks cross-site form posts). */
 export function sameOrigin(req) {
   const o = req.headers.get("origin");

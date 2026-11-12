@@ -1,5 +1,5 @@
 /* Oxinab service worker: makes the catalogue installable and usable offline, and shows offer notifications. */
-const V = "oxinab-v13";
+const V = "oxinab-v14";
 const SHELL = ["/", "/styles.css", "/app.js", "/logo.jpg", "/catalog.json", "/manifest.webmanifest", "/icons/icon-192.png"];
 
 self.addEventListener("install", (e) => {
@@ -13,6 +13,7 @@ self.addEventListener("fetch", (e) => {
   if (r.method !== "GET") return;
   const u = new URL(r.url);
   if (u.origin === location.origin && (u.pathname.startsWith("/api/") || u.pathname.startsWith("/admin"))) return;
+  if (u.hostname.endsWith("tile.openstreetmap.org")) return; // map tiles: never kept on the phone
   const isImg = r.destination === "image";
   if (isImg) {
     // Photos: from the phone first, then the network.

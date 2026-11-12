@@ -366,9 +366,9 @@ let ORD = null, OF = { q: "", st: "all", per: "all" };
 const ST = { new: "New", confirmed: "Confirmed", preparing: "Preparing", out: "Out for delivery", delivered: "Delivered", cancelled: "Cancelled" };
 // For the date-and-time box: an ISO time shown in this computer's local time.
 const localDT = (iso) => { if (!iso) return ""; const d = new Date(iso); return new Date(d - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 16); };
-let OCHK = null, OERR = false;
+let OCHK = null, OERR = false, DRV = [], KVLIVE = false;
 async function loadOrders() {
-  try { ORD = (await api("/api/admin/orders")).orders; OCHK = new Date(); OERR = false; }
+  try { const r = await api("/api/admin/orders"); ORD = r.orders; DRV = r.drivers || []; KVLIVE = !!r.live; OCHK = new Date(); OERR = false; }
   catch (e) { OERR = true; if (e.status === 401) { if (TAB === "orders" && ORD) renderOrders(); return false; } ORD = ORD || []; }
   const n = ORD.filter((o) => o.status === "new").length;
   $("obadge").hidden = !n; $("obadge").textContent = n;
@@ -385,7 +385,7 @@ function renderOrders() {
 <div class="bar"><input type="search" id="oq" placeholder="Search order number, name, phone or product" value="${esc(OF.q)}" aria-label="Search orders">
 <select id="ost" aria-label="Status"><option value="all">All statuses</option>${Object.keys(ST).map((s) => `<option value="${s}">${ST[s]}</option>`).join("")}</select>
 <select id="oper" aria-label="Period"><option value="all">Any time</option><option value="1">Today</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option></select>
-<button class="btn" id="oref">↻ Refresh</button><span class="mu sm" id="ochk">${OERR ? "⚠ Could not reach the server" : OCHK ? "Checked " + OCHK.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : ""}</span><button class="btn pri" id="pfnew">+ New proforma</button></div><div id="olist"></div>
+<button class="btn" id="oref">↻ Refresh</button><span class="mu sm" id="ochk">${OERR ? "⚠ Could not reach the server" : OCHK ? "Checked " + OCHK.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : ""}</span><button class="btn pri" id="pfnew">+ New proforma</button></div><div id="olist"></div><div id="drvbox"></div>
 <p class="mu sm">An order is saved when a customer taps "Send order on WhatsApp". If they then don't send the message, mark it Cancelled. The client sees each status and the expected delivery time live in "My orders" in the app.</p><div id="pflist"></div>`;
   $("ost").value = OF.st; $("oper").value = OF.per;
   $("oq").oninput = (e) => { OF.q = e.target.value; list(); };
@@ -401,6 +401,14 @@ function renderOrders() {
     toast(d > 0 ? `${d} new order${d > 1 ? "s" : ""}.` : `Up to date: ${ORD.length} order${ORD.length === 1 ? "" : "s"}.`);
   };
   $("olist").onchange = async (e) => {
+    const ds = e.target.closest("select[data-drv]");
+    if (ds) {
+      const o = ORD.find((x) => x.id === ds.dataset.drv), old = o.drv || "";
+      ds.disabled = true;
+      try { await api("/api/admin/orders", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: o.id, driver: ds.value, status: o.status }) }); o.drv = ds.value; const d = DRV.find((x) => x.id === ds.value); toast(d ? `Order #${o.id} given to ${d.n}. It is in their driver app now.` : `Order #${o.id} has no driver now.`); }
+      catch (err) { ds.value = old; if (err.status !== 401) toast("Could not change the driver. Try again."); }
+      ds.disabled = false; return;
+    }
     const et = e.target.closest("input[data-eta]");
     if (et) {
       const o = ORD.find((x) => x.id === et.dataset.eta), v = et.value ? new Date(et.value).toISOString() : "";
@@ -417,7 +425,7 @@ function renderOrders() {
     $("obadge").hidden = !cnt("new"); $("obadge").textContent = cnt("new");
     renderOrders();
   };
-  list(); if (typeof pfOrdersHook === "function") pfOrdersHook();
+  list(); drvPanel(); if (typeof pfOrdersHook === "function") pfOrdersHook();
   function list() {
     const q = OF.q.trim().toLowerCase(), since = OF.per === "all" ? 0 : OF.per === "1" ? new Date().setHours(0, 0, 0, 0) : Date.now() - OF.per * 864e5;
     const it = ORD.filter((o) => (OF.st === "all" || o.status === OF.st) && new Date(o.at) >= since
@@ -427,10 +435,44 @@ function renderOrders() {
       return `<article class="ord ${o.status}"><div><h3>Order #${esc(o.id)} <span class="st-${o.status} sm">● ${ST[o.status]}</span></h3>
 <ul>${o.items.map((i) => `<li>${i.q} × ${esc(i.n)} <span class="mu sm">${esc(i.id)}${i.p ? " · " + usd(i.p) : ""}</span></li>`).join("")}</ul></div>
 <div style="text-align:end"><b style="font-size:17px">${o.total != null ? usd(o.total) : '<span class="mu sm">No total (prices missing)</span>'}</b><br>
-<select data-o="${esc(o.id)}" aria-label="Status of order ${esc(o.id)}" style="margin-top:6px">${Object.keys(ST).map((s) => `<option value="${s}" ${s === o.status ? "selected" : ""}>${ST[s]}</option>`).join("")}</select><br><label class="eta">Delivery expected<input type="datetime-local" data-eta="${esc(o.id)}" value="${localDT(o.eta)}" aria-label="Expected delivery of order ${esc(o.id)}"></label><button class="btn" data-pf="${esc(o.id)}" style="margin-top:6px">📄 Proforma</button></div>
+<select data-o="${esc(o.id)}" aria-label="Status of order ${esc(o.id)}" style="margin-top:6px">${Object.keys(ST).map((s) => `<option value="${s}" ${s === o.status ? "selected" : ""}>${ST[s]}</option>`).join("")}</select><br><label class="eta">Driver<select data-drv="${esc(o.id)}" aria-label="Driver for order ${esc(o.id)}"><option value="">Not assigned</option>${DRV.filter((d) => d.on || d.id === o.drv).map((d) => `<option value="${esc(d.id)}" ${d.id === o.drv ? "selected" : ""}>${esc(d.n)}</option>`).join("")}</select></label><label class="eta">Delivery expected<input type="datetime-local" data-eta="${esc(o.id)}" value="${localDT(o.eta)}" aria-label="Expected delivery of order ${esc(o.id)}"></label><button class="btn" data-pf="${esc(o.id)}" style="margin-top:6px">📄 Proforma</button></div>
 <div class="meta"><span>🕒 ${when(o.at)}</span><span>👤 ${esc(o.name || "No name given")}</span>${o.phone ? `<span>📞 <a href="https://wa.me/${esc(tel)}" target="_blank" rel="noopener">${esc(o.phone)}</a></span>` : ""}${o.addr ? `<span>📍 ${esc(o.addr)}</span>` : ""}<span>${o.lang === "ar" ? "Arabic" : "English"}</span></div></article>`;
     }).join("") : `<div class="panel"><p class="mu" style="margin:0">${ORD.length ? "No orders match these filters." : "No orders yet. They appear here when customers send an order from the catalogue."}</p></div>`;
   }
 }
 // Every 5 minutes: each check lists files, which the free storage plan counts. Refresh checks at once.
 setInterval(() => { if (ME.signedIn && !document.hidden) loadOrders(); }, 300000);
+
+/* ---------- Drivers (in the Orders tab) ----------
+   Each driver signs in to the driver app (/driver) with their phone number and a PIN set here. */
+function drvPanel() {
+  const el = $("drvbox"); if (!el) return;
+  const rows = DRV.map((d, i) => `<tr><td><input data-k="n" data-i="${i}" value="${esc(d.n)}" maxlength="40" aria-label="Name"></td><td><input data-k="tel" data-i="${i}" value="${esc(d.tel)}" maxlength="30" dir="ltr" aria-label="Phone"></td><td><input data-k="pin" data-i="${i}" placeholder="unchanged" inputmode="numeric" maxlength="8" aria-label="New PIN"></td><td><label class="row sm"><input type="checkbox" data-k="on" data-i="${i}" ${d.on ? "checked" : ""}> Can sign in</label></td></tr>`).join("");
+  el.innerHTML = `<div class="panel" style="max-width:none"><div class="row"><h2 style="font-size:18px">Drivers</h2><span class="sp"></span><a class="btn" href="/driver" target="_blank" rel="noopener">Open the driver app ↗</a></div>
+<p class="mu sm" style="margin:0 0 8px">Drivers open <b>${esc(location.host)}/driver</b> on their phone and sign in with their phone number and PIN. Give each order a driver with the Driver box on the order. ${KVLIVE ? "While a driver is delivering, the client sees them on a live map." : "<b>The live map needs the Redis database connected in Vercel.</b>"}</p>
+<div class="tw"><table><thead><tr><th>Name</th><th>Phone</th><th>PIN (4–8 digits)</th><th></th></tr></thead><tbody id="drows">${rows}<tr><td><input data-new="n" placeholder="New driver name" maxlength="40"></td><td><input data-new="tel" placeholder="Phone" maxlength="30" dir="ltr"></td><td><input data-new="pin" placeholder="PIN" inputmode="numeric" maxlength="8"></td><td></td></tr></tbody></table></div>
+<div class="row"><button class="btn pri" id="drvsave" disabled>Save drivers</button><span class="mu sm" id="drvmsg"></span></div></div>`;
+  const edit = DRV.map((d) => ({ id: d.id, n: d.n, tel: d.tel, on: d.on, pin: "" }));
+  el.oninput = el.onchange = (e) => {
+    const t = e.target, k = t.dataset.k;
+    if (k) edit[+t.dataset.i][k] = t.type === "checkbox" ? t.checked : t.value.trim();
+    $("drvsave").disabled = false; $("drvmsg").textContent = "Not saved yet";
+  };
+  $("drvsave").onclick = async () => {
+    const nw = {}; el.querySelectorAll("[data-new]").forEach((i) => (nw[i.dataset.new] = i.value.trim()));
+    const list = edit.map((d) => ({ ...d, pin: d.pin || undefined }));
+    if (nw.n || nw.tel || nw.pin) {
+      if (!nw.n || !nw.tel || !/^\d{4,8}$/.test(nw.pin)) { $("drvmsg").textContent = "A new driver needs a name, a phone number and a PIN of 4 to 8 digits."; return; }
+      list.push({ n: nw.n, tel: nw.tel, pin: nw.pin, on: true });
+    }
+    if (list.some((d) => d.pin && !/^\d{4,8}$/.test(d.pin))) { $("drvmsg").textContent = "A PIN is 4 to 8 digits."; return; }
+    $("drvsave").disabled = true;
+    try { const r = await api("/api/admin/orders", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ drivers: list }) }); DRV = r.drivers; renderOrders(); toast("Drivers saved."); }
+    catch (err) {
+      $("drvsave").disabled = false;
+      if (err.status === 401) return;
+      const m = { bad_driver: "Each driver needs a name and a full phone number.", bad_pin: "A PIN is 4 to 8 digits.", pin_needed: "A new driver needs a PIN.", same_phone: "Two drivers have the same phone number." }[err.message];
+      $("drvmsg").textContent = (m || "Could not save. Try again.") + (err.body && err.body.detail ? ` (${err.body.detail})` : "");
+    }
+  };
+}
