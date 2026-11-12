@@ -15,8 +15,62 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700&family=Manrope:wght@400;600;700&family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/styles.css">
+<style>
+/* Opening animation of the Oxinab "O": the ring draws, the water rises, the bubbles pop, then the name appears. */
+#splash{position:fixed;inset:0;z-index:999;background:#fff;display:grid;place-items:center;transition:opacity .4s ease,transform .45s ease}
+#splash.out{opacity:0;transform:scale(1.04);pointer-events:none}
+.sp-box{position:relative;width:min(74vw,380px);aspect-ratio:520/184;transform-origin:16.35% 58.7%;transform:translate(33.65%,-8.7%) scale(1.75)}
+.sp-box>*{position:absolute;inset:0;width:100%;height:100%;display:block}
+.sp-word{clip-path:inset(0 100% 0 30.6%);opacity:0}
+.sp-o .ring{fill:none;stroke:url(#spg);stroke-width:25.5;stroke-linecap:round;stroke-dasharray:1 1;stroke-dashoffset:1;transform:rotate(-140deg);transform-origin:85px 108px}
+.sp-o .w{fill:none;stroke:#fff;stroke-width:2.1;opacity:0}
+.sp-o .b{fill:#081d6e;transform:scale(0);transform-box:fill-box;transform-origin:center}
+#splash.go .sp-box{animation:sp-move .6s cubic-bezier(.65,0,.25,1) 1.15s forwards}
+#splash.go .ring{animation:sp-draw .8s cubic-bezier(.55,0,.2,1) .05s forwards}
+#splash.go .ws{animation:sp-flow 1.6s linear .35s infinite}
+#splash.go .w{animation:sp-wave .42s ease-out forwards;animation-delay:calc(.95s - var(--i) * .05s)}
+#splash.go .b1{animation:sp-pop .42s cubic-bezier(.3,1.6,.5,1) .72s forwards}
+#splash.go .b2{animation:sp-pop .42s cubic-bezier(.3,1.6,.5,1) .84s forwards}
+#splash.go .b3{animation:sp-pop .42s cubic-bezier(.3,1.6,.5,1) .96s forwards}
+#splash.go .sp-word{animation:sp-wipe .55s cubic-bezier(.6,0,.2,1) 1.4s forwards,sp-full .25s ease 1.95s forwards}
+#splash.go .sp-o{animation:sp-hide .25s ease 1.95s forwards}
+#splash.calm .sp-box{transform:none}#splash.calm .sp-word{clip-path:none;opacity:1}#splash.calm .sp-o{display:none}
+@keyframes sp-draw{to{stroke-dashoffset:0}}
+@keyframes sp-wave{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+@keyframes sp-flow{to{transform:translateX(-28px)}}
+@keyframes sp-pop{0%{transform:translate(9px,14px) scale(0)}100%{transform:none}}
+@keyframes sp-move{to{transform:none}}
+@keyframes sp-wipe{from{opacity:1;clip-path:inset(0 100% 0 30.6%)}to{opacity:1;clip-path:inset(0 0 0 30.6%)}}
+@keyframes sp-full{from{opacity:1;clip-path:inset(0 0 0 30.6%)}to{opacity:1;clip-path:inset(0)}}
+@keyframes sp-hide{to{opacity:0}}
+</style>
 </head>
 <body>
+<div id="splash" aria-hidden="true"><div class="sp-box">
+<img src="/logo.jpg" alt="" class="sp-word" width="520" height="184" decoding="sync">
+<svg class="sp-o" viewBox="0 0 520 184"><defs><linearGradient id="spg" gradientUnits="userSpaceOnUse" gradientTransform="rotate(140 85 108)" x1="14" y1="150" x2="158" y2="70"><stop offset="0" stop-color="#0a3a8f"/><stop offset=".55" stop-color="#0573c4"/><stop offset="1" stop-color="#04bdf3"/></linearGradient>
+<clipPath id="spc"><circle cx="85" cy="108" r="71"/></clipPath></defs>
+<circle class="ring" cx="85" cy="108" r="58.5" pathLength="1"/>
+<g clip-path="url(#spc)"><g class="ws">
+<path class="w" style="--i:0" d="M-30 108.6 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0"/>
+<path class="w" style="--i:1" d="M-30 114.5 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0"/>
+<path class="w" style="--i:2" d="M-30 120.4 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0"/>
+<path class="w" style="--i:3" d="M-30 126.3 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0"/>
+<path class="w" style="--i:4" d="M-30 132.2 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0"/>
+<path class="w" style="--i:5" d="M-30 138.1 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0"/>
+<path class="w" style="--i:6" d="M-30 144.0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0"/>
+<path class="w" style="--i:7" d="M-30 149.9 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0"/>
+<path class="w" style="--i:8" d="M-30 155.8 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0"/>
+<path class="w" style="--i:9" d="M-30 161.7 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0"/>
+<path class="w" style="--i:10" d="M-30 167.6 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0"/>
+<path class="w" style="--i:11" d="M-30 173.5 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0 q7 2.2 14 0 q7 -2.2 14 0"/>
+</g></g>
+<circle class="b b1" cx="21.5" cy="55.5" r="17.5"/><circle class="b b2" cx="49.5" cy="21.5" r="18"/><circle class="b b3" cx="16.5" cy="16.5" r="10"/>
+</svg></div></div>
+<script>(function(){var s=document.getElementById('splash'),k='oxsp';try{if(sessionStorage.getItem(k)){s.remove();return}sessionStorage.setItem(k,'1')}catch(e){}
+var rm=matchMedia('(prefers-reduced-motion: reduce)').matches,done=0;s.className=rm?'calm':'go';
+function end(){if(done++)return;s.classList.add('out');setTimeout(function(){s.remove()},450)}
+setTimeout(end,rm?900:2600);})();</script>
 <header class="top"><div class="wrap bar">
 <a class="logo" href="#top"><img id="logo" src="/logo.jpg" alt="Oxinab" width="107" height="38"></a>
 <nav><a href="#shop">Products</a><a href="#how">How to order</a><a href="#contact">Contact</a>
