@@ -112,7 +112,7 @@ export async function loadCatalog() {
 function fixup(data, version) {
   // A newer product list shipped in the code replaces the saved one once; the shop's settings are kept.
   if (!Array.isArray(data.banners)) data.banners = DEFAULT_BANNERS;
-  if ((data.seedv || 1) < (SEED.seedv || 1)) return { data: { ...SEED, set: { ...SEED.set, ...data.set }, banners: data.banners }, version };
+  if ((data.seedv || 1) < (SEED.seedv || 1)) return { data: { ...SEED, set: { ...SEED.set, ...data.set }, banners: data.banners, deals: data.deals || [] }, version };
   return { data, version };
 }
 /* The shop and new orders read the live catalogue from one fixed file, catalog-live.json, through the storage's cache.
@@ -186,6 +186,25 @@ export function cleanCatalog(input) {
       on: b.on ? 1 : 0,
     };
   });
+  // Flash deals (one or more products at a deal price until a set time) and bundles of the week.
+  const byRef = new Set(items.map((i) => i.id)), iso = (v) => { const d = v ? new Date(v) : null; return d && !isNaN(d) ? d.toISOString() : ""; };
+  const deals = (Array.isArray(input.deals) ? input.deals : []).slice(0, 30).map((d, n) => {
+    const parts = (Array.isArray(d.items) ? d.items : []).slice(0, 10)
+      .map((x) => ({ id: str(x && x.id, 24), q: Math.max(1, Math.min(99, Math.floor(Number(x && x.q)) || 1)) }))
+      .filter((x) => byRef.has(x.id));
+    if (!parts.length) throw new Error("deal_without_products:" + (n + 1));
+    const pr = Number(d.pr);
+    if (!(isFinite(pr) && pr > 0)) throw new Error("deal_without_price:" + (n + 1));
+    const end = iso(d.end), st0 = iso(d.st);
+    if (d.k === "f" && !end) throw new Error("flash_deal_without_end:" + (n + 1));
+    return {
+      id: /^[a-z0-9]{6,10}$/.test(d.id) ? d.id : Math.random().toString(36).slice(2, 10).padEnd(6, "0"),
+      k: d.k === "f" ? "f" : "b",
+      t: str(d.t, 80) || (d.k === "f" ? "Flash deal" : "Bundle of the week"), ta: str(d.ta, 80),
+      s: str(d.s, 160), sa: str(d.sa, 160),
+      items: parts, pr: Math.round(pr * 100) / 100, st: st0, end, on: d.on ? 1 : 0,
+    };
+  });
   const st = input.set || {};
   const wa = String(st.wa || "").replace(/\D/g, "").replace(/^00/, "");
   return {
@@ -197,6 +216,11 @@ export function cleanCatalog(input) {
       wa: wa.length >= 8 && wa.length <= 15 ? wa : "96176878113",
       upd: new Date().toISOString(),
     },
-    cats, items, banners,
+    cats, items, banners, deals,
   };
 }
+
+/* A deal can be ordered while it is switched on and between its start and end. A few minutes of grace after the
+   end let a customer who was already at the basket still send it. */
+export const dealLive = (d, now = Date.now(), grace = 0) =>
+  !!d && !!d.on && (!d.st || Date.parse(d.st) <= now) && (!d.end || Date.parse(d.end) + grace > now);

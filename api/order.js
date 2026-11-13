@@ -1,5 +1,5 @@
 // A customer tapped "Send order on WhatsApp": keep a copy of the order for the command center.
-import { json, blobReady, loadCatalogFast as loadCatalog, sameOrigin } from "./_lib.js";
+import { json, blobReady, loadCatalogFast as loadCatalog, sameOrigin, dealLive } from "./_lib.js";
 import { list, put } from "@vercel/blob";
 import { kvOn, kvGet } from "./_kv.js";
 import { saveOrder, ORDER_ID, trackPath, TRACK_PATH, trackFromOrder, readTrack, writeTrack, phoneKey } from "./_orders.js";
@@ -23,8 +23,17 @@ export async function POST(req) {
   if (!ORDER_ID.test(id)) { console.warn("order.bad_id"); return json({ error: "bad_id" }, 400); }
   const { data } = await loadCatalog();
   const byId = new Map(data.items.map((i) => [i.id, i]));
+  const deals = new Map((data.deals || []).map((d) => [d.id, d]));
   const items = (Array.isArray(b.items) ? b.items : []).slice(0, 100).map((x) => {
-    const p = byId.get(String(x && x.id)), q = Math.floor(Number(x && x.q));
+    const q = Math.floor(Number(x && x.q)), key = String(x && x.id);
+    if (key.startsWith("D:")) {
+      // A deal line: its price comes from the live catalogue, never from the phone.
+      const d = deals.get(key.slice(2));
+      if (!dealLive(d, Date.now(), 15 * 60e3) || !(q > 0 && q <= 99)) { console.warn("order.deal_not_live", key); return null; }
+      const parts = d.items.map((it) => { const p = byId.get(it.id); return p ? `${it.q}× ${p.n} (${p.id})` : ""; }).filter(Boolean);
+      return { id: key, n: `${d.k === "f" ? "⚡ Flash deal" : "🎁 Bundle"}: ${d.t} — ${parts.join(", ")}`, q, p: d.pr, deal: 1 };
+    }
+    const p = byId.get(key);
     return p && q > 0 && q <= 999 ? { id: p.id, n: p.n, q, p: p.p || 0 } : null;
   }).filter(Boolean);
   if (!items.length) { console.warn("order.no_items", id); return json({ error: "no_items" }, 400); }

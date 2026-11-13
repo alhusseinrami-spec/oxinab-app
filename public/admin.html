@@ -103,6 +103,10 @@ tr.off td{opacity:.55}tr.chg td:first-child{box-shadow:inset 3px 0 var(--acc)}
 .bprev b{flex:1;font:700 14px/1.2 Outfit,Manrope,sans-serif}.bprev span{font-size:12px;opacity:.8;order:2}
 .bf input[type=color]{width:46px;height:34px;padding:2px;cursor:pointer}
 .bf{display:flex;flex-direction:column;gap:10px;min-width:0}.bf .sp{flex:1}
+.dle{border:1px solid var(--bd);border-radius:14px;padding:12px 14px;margin:12px 0;display:grid;gap:8px}
+.dlk{font-weight:800;font-size:12.5px;border-radius:99px;padding:3px 10px;color:#fff;background:#e8590c}.dlk.b{background:#7b3fe4}
+.dls{font-size:12.5px;font-weight:700;border-radius:99px;padding:3px 10px;background:var(--bg)}.dls.live{background:#e3f6eb;color:#147a3d}.dls.end{background:#fdecea;color:#b3261e}.dls.soon{background:#fff4e5;color:#8a4b00}
+.dlit{display:grid;gap:6px;background:var(--bg);border-radius:12px;padding:10px}.dlit code{font-size:12.5px}
 @media(max-width:640px){.bn{grid-template-columns:1fr}.bprev{max-width:320px}}
 /* proforma editor */
 .mod .box.pfbox{width:min(980px,100%)}
@@ -167,6 +171,7 @@ fieldset.pfs{border:1px solid var(--bd);border-radius:12px;padding:10px 12px 12p
     <button role="tab" data-t="products" aria-selected="true">Products</button>
     <button role="tab" data-t="orders" aria-selected="false">Orders <span class="badge" id="obadge" hidden></span></button>
     <button role="tab" data-t="banners" aria-selected="false">Slides</button>
+    <button role="tab" data-t="deals" aria-selected="false">Deals</button>
     <button role="tab" data-t="cats" aria-selected="false">Categories</button>
     <button role="tab" data-t="push" aria-selected="false">Notifications</button>
     <button role="tab" data-t="settings" aria-selected="false">Settings</button>
@@ -177,6 +182,7 @@ fieldset.pfs{border:1px solid var(--bd);border-radius:12px;padding:10px 12px 12p
   <section id="t-products"></section>
   <section id="t-orders" hidden></section>
   <section id="t-banners" hidden></section>
+  <section id="t-deals" hidden></section>
   <section id="t-cats" hidden></section>
   <section id="t-push" hidden></section>
   <section id="t-settings" hidden></section>

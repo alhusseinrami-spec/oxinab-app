@@ -32,14 +32,15 @@ Object.assign(TR,{"My orders":"طلباتي","Received":"تم الاستلام",
 "Too many tries. Please wait a few minutes.":"محاولات كثيرة. يرجى الانتظار بضع دقائق.","Could not connect. Check your internet.":"تعذّر الاتصال. تحقّق من الإنترنت.",
 "Updated":"آخر تحديث","Back":"رجوع","Get a notification when your order is confirmed, on its way and delivered.":"احصل على إشعار عند تأكيد طلبك وخروجه للتوصيل ووصوله.","Turn on":"تفعيل","Order notifications are on.":"إشعارات الطلبات مفعّلة.","Notifications are blocked for this site. Allow them in your phone settings to hear about your order.":"الإشعارات محظورة لهذا الموقع. اسمح بها من إعدادات الهاتف لتصلك أخبار طلبك.","To get order notifications on iPhone, add Oxinab to your home screen and open it from there.":"لتصلك إشعارات الطلبات على الآيفون، أضف أوكسيناب إلى الشاشة الرئيسية وافتحه من هناك.","Your driver":"السائق","is on the way":"في الطريق إليك","Call driver":"اتصل بالسائق","Waiting for the driver's location…":"بانتظار موقع السائق…","Driver's location":"موقع السائق","seconds ago":"ثانية مضت","minutes ago":"دقيقة مضت","We are getting your order ready.":"نقوم بتجهيز طلبك.","Prices to be confirmed":"الأسعار تُؤكَّد لاحقاً"});
 const TITLE='Oxinab Catalogue', CUR='$';
-let D=null,CATS=[],P=[],byId={},cnt=[],SHOW_PRICES=false,WA='96176878113',LOW=0;
+let D=null,DL={},CATS=[],P=[],byId={},cnt=[],SHOW_PRICES=false,WA='96176878113',LOW=0;
 let LANG='en';try{LANG=localStorage.getItem('oxl')||((navigator.language||'').slice(0,2)==='ar'?'ar':'en')}catch(e){}
 const bi=s=>s.replace(/[A-Za-z0-9][A-Za-z0-9×*\/.,\-+%' ]*[A-Za-z0-9%]|[A-Za-z0-9]/g,'⁦$&⁩');
 const t=s=>LANG==='ar'&&TR[s]?bi(TR[s]):s;
 const nm=p=>LANG==='ar'?bi(p.a||p.n):p.n,ds=p=>LANG==='ar'?bi(p.ad||p.d||''):(p.d||''),cnm=i=>LANG==='ar'&&CATS[i].a?CATS[i].a:CATS[i].n;
 const $=id=>document.getElementById(id),esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
 const money=v=>CUR+v.toFixed(2),qty=()=>Object.values(cart).reduce((a,b)=>a+b,0);
-const tot=()=>Object.keys(cart).reduce((s,k)=>s+byId[k].pr*cart[k],0);
+const isD=k=>k.slice(0,2)==='D:';
+const tot=()=>Object.keys(cart).reduce((s,k)=>s+(isD(k)?DL[k.slice(2)].pr:byId[k].pr)*cart[k],0);
 const save=()=>{try{localStorage.setItem('oxc',JSON.stringify(cart))}catch(e){}};
 const out=p=>p.s===0;
 let cart={},cat=-1,q='';
@@ -52,7 +53,7 @@ function stat(){
  const h=document.documentElement;h.lang=LANG;h.dir=LANG==='ar'?'rtl':'ltr';
  const w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);let n;
  while(n=w.nextNode()){
-  if(n.parentElement.closest('script,style,#ptrack,#pdots,#trk,#g,#chips,#tabs,#ci,#tt,#cnt,#gi,#cn,#upd,.sheet,.toast'))continue;
+  if(n.parentElement.closest('script,style,#dlg,#ptrack,#pdots,#trk,#g,#chips,#tabs,#ci,#tt,#cnt,#gi,#cn,#upd,.sheet,.toast'))continue;
   if(n._o===undefined)n._o=n.nodeValue;
   const k=n._o.trim();if(!k)continue;
   n.nodeValue=LANG==='ar'&&TR[k]?n._o.replace(k,t(k)):n._o;
@@ -64,35 +65,35 @@ function stat(){
  document.title=t(TITLE);updTxt();$('lg').textContent=LANG==='ar'?'EN':'عربي';
 }
 function setLang(){LANG=LANG==='ar'?'en':'ar';try{localStorage.setItem('oxl',LANG)}catch(e){}stat();all()}
-function all(){if(!D)return;promo();chips();draw();drawCart();trkDraw()}
+function all(){if(!D)return;promo();dealsDraw();chips();draw();drawCart();trkDraw()}
 
 function load(d){
  D=d;CATS=d.cats;SHOW_PRICES=!!d.set.price;WA=d.set.wa||WA;LOW=d.set.low||0;
  P=d.items.filter(i=>!i.off&&CATS[i.k]).map(i=>({id:i.id,n:i.n,a:i.a,d:i.d,ad:i.ad,pr:i.p||0,s:i.s==null?0:i.s,ci:i.k,im:i.im}));
- byId={};P.forEach(p=>byId[p.id]=p);cnt=CATS.map((c,i)=>P.filter(p=>p.ci===i).length);
+ byId={};P.forEach(p=>byId[p.id]=p);DL={};(d.deals||[]).forEach(x=>{if(dealOn(x))DL[x.id]=x});cnt=CATS.map((c,i)=>P.filter(p=>p.ci===i).length);
  const c0=cart;cart={};
- try{const s=Object.keys(c0).length?c0:JSON.parse(localStorage.getItem('oxc')||'{}');for(const k in s){if(byId[k]&&!out(byId[k])&&s[k]>0)cart[k]=s[k]}}catch(e){}
+ try{const s=Object.keys(c0).length?c0:JSON.parse(localStorage.getItem('oxc')||'{}');for(const k in s){if((isD(k)?DL[k.slice(2)]&&dealOk(DL[k.slice(2)]):byId[k]&&!out(byId[k]))&&s[k]>0)cart[k]=s[k]}}catch(e){}
  if(cat>=CATS.length)cat=-1;
  updTxt();all();
 }
 function stepper(id){return `<div class="st"><button onclick="ch('${id}',-1)" aria-label="${t('Remove one')}">−</button><span>${cart[id]}</span><button onclick="ch('${id}',1)" aria-label="${t('Add one')}">+</button></div>`}
 function stock(p){if(p.s==null)return '';if(p.s===0)return `<span class="sb out">${t('Out of stock')}</span>`;if(LOW&&p.s<=LOW)return `<span class="sb low">${LANG==='ar'?t('left')+' '+p.s:'Only '+p.s+' left'}</span>`;return ''}
 function card(p){const c=CATS[p.ci];
-return `<article class="pc" style="--c:${c.c}"><div class="th${p.im?' ph':''}">${p.im?`<img src="${esc(p.im)}" alt="${esc(nm(p))}" loading="lazy" decoding="async">`:`<span aria-hidden="true">${c.e}</span>`}</div><div class="pb"><span class="rf">${p.id}</span>${stock(p)}<div style="flex:1"><h3>${esc(nm(p))}</h3>${ds(p)?`<p class="ds">${esc(ds(p))}</p>`:''}</div><div class="ft">${SHOW_PRICES&&p.pr?`<b dir="ltr">${money(p.pr)}</b>`:`<span class="mu sm">${t('Ask for a quote')}</span>`}${cart[p.id]?stepper(p.id):`<button class="ad" onclick="ch('${p.id}',1)" ${out(p)?'disabled':''}>${t('Add')}</button>`}</div></div></article>`}
+return `<article class="pc" style="--c:${c.c}"><div class="th${p.im?' ph':''}">${p.im?`<img src="${esc(p.im)}" alt="${esc(nm(p))}" loading="lazy" decoding="async">`:`<span aria-hidden="true">${c.e}</span>`}</div><div class="pb"><span class="rf">${p.id}</span>${stock(p)}${inDeal(p.id)?`<a class="sb dl-t" href="#deals">${t(inDeal(p.id).k==='f'?'⚡ Flash deal':'🎁 In a bundle')}</a>`:''}<div style="flex:1"><h3>${esc(nm(p))}</h3>${ds(p)?`<p class="ds">${esc(ds(p))}</p>`:''}</div><div class="ft">${SHOW_PRICES&&p.pr?`<b dir="ltr">${money(p.pr)}</b>`:`<span class="mu sm">${t('Ask for a quote')}</span>`}${cart[p.id]?stepper(p.id):`<button class="ad" onclick="ch('${p.id}',1)" ${out(p)?'disabled':''}>${t('Add')}</button>`}</div></div></article>`}
 function draw(){
  const f=P.filter(p=>(cat<0||p.ci===cat)&&(p.id+' '+p.n+' '+(p.a||'')+' '+(p.d||'')).toLowerCase().includes(q));
  $('g').innerHTML=f.length?f.map(card).join(''):'<p class="mu">'+t('No match. Message us on WhatsApp and we will check availability for you.')+'</p>';
  $('cnt').textContent=f.length+' '+t(f.length===1?'product':'products');
 }
 function drawCart(){
- const ks=Object.keys(cart),pr=SHOW_PRICES&&ks.every(k=>byId[k].pr>0);
+ const ks=Object.keys(cart),pr=ks.every(k=>isD(k)||SHOW_PRICES&&byId[k].pr>0);
  $('cn').textContent=qty();
- $('ci').innerHTML=ks.length?ks.map(k=>{const p=byId[k];return `<div class="it" style="--c:${CATS[p.ci].c}"><div><b>${esc(nm(p))}</b><span class="mu sm" dir="ltr">${p.id}${SHOW_PRICES&&p.pr?' · '+money(p.pr):''}</span></div>${stepper(k)}</div>`}).join(''):'<p class="mu">'+t('Your order is empty. Add products from the catalogue.')+'</p>';
+ $('ci').innerHTML=ks.length?ks.map(k=>{if(isD(k)){const d=DL[k.slice(2)];return `<div class="it" style="--c:#e8590c"><div><b>${d.k==='f'?'⚡':'🎁'} ${esc(dt(d))}</b><span class="mu sm" dir="ltr">${esc(d.items.map(i=>i.q+'× '+i.id).join(', '))} · ${money(d.pr)}</span></div>${stepper(k)}</div>`}const p=byId[k];return `<div class="it" style="--c:${CATS[p.ci].c}"><div><b>${esc(nm(p))}</b><span class="mu sm" dir="ltr">${p.id}${SHOW_PRICES&&p.pr?' · '+money(p.pr):''}</span></div>${stepper(k)}</div>`}).join(''):'<p class="mu">'+t('Your order is empty. Add products from the catalogue.')+'</p>';
  $('tt').innerHTML=pr?`<span>${t('Estimated total')}</span><span dir="ltr">${money(tot())}</span>`:`<span>${t('Items')}</span><span>${qty()}</span>`;
  const a=$('wa');a.classList.toggle('off',!ks.length);
  const U=who(),ul=LANG==='ar'?[U.name&&'الاسم: '+U.name,U.phone&&'الهاتف: '+U.phone,U.addr&&'العنوان: '+U.addr]:[U.name&&'Name: '+U.name,U.phone&&'Phone: '+U.phone,U.addr&&'Address: '+U.addr];
  const head=(LANG==='ar'?'طلب رقم ':'Order #')+OID+'\n',tail=ul.filter(Boolean).length?'\n'+ul.filter(Boolean).join('\n'):'';
- const msg=head+(LANG==='ar'?'مرحباً أوكسيناب، أود طلب:\n'+ks.map(k=>'• '+k+' - '+(byId[k].a||byId[k].n)+' × '+cart[k]).join('\n')+(pr?'\nالمجموع التقريبي: '+money(tot()):'')+'\nالدفع: عند الاستلام':'Hello Oxinab, I would like to order:\n'+ks.map(k=>'• '+k+' - '+byId[k].n+' x '+cart[k]).join('\n')+(pr?'\nEstimated total: '+money(tot()):'')+'\nPayment: Cash on Delivery')+tail;
+ const msg=head+(LANG==='ar'?'مرحباً أوكسيناب، أود طلب:\n'+ks.map(k=>isD(k)?'• '+dmsg(DL[k.slice(2)],'ar')+' × '+cart[k]:'• '+k+' - '+(byId[k].a||byId[k].n)+' × '+cart[k]).join('\n')+(pr?'\nالمجموع التقريبي: '+money(tot()):'')+'\nالدفع: عند الاستلام':'Hello Oxinab, I would like to order:\n'+ks.map(k=>isD(k)?'• '+dmsg(DL[k.slice(2)],'en')+' x '+cart[k]:'• '+k+' - '+byId[k].n+' x '+cart[k]).join('\n')+(pr?'\nEstimated total: '+money(tot()):'')+'\nPayment: Cash on Delivery')+tail;
  a.href=ks.length?'https://wa.me/'+WA+'?text='+encodeURIComponent(msg):'#';
 }
 /* ===== Brands and offers slider (slides are managed in the command center) ===== */
@@ -171,7 +172,7 @@ let dg=0;function diag(m){if(dg++>5)return;try{navigator.sendBeacon('/api/order'
 function standaloneNow(){try{return matchMedia('(display-mode: standalone)').matches}catch(e){return false}}
 addEventListener('error',e=>diag('js:'+(e.message||'')+' @'+(e.lineno||0)));
 addEventListener('unhandledrejection',e=>diag('rej:'+(e.reason&&e.reason.message||e.reason||'')));
-function ch(id,d){const p=byId[id];if(!p)return;let n=Math.max(0,(cart[id]||0)+d);if(p.s!=null)n=Math.min(n,p.s);cart[id]=n;if(!cart[id])delete cart[id];save();draw();drawCart()}
+function ch(id,d){if(isD(id)){const x=DL[id.slice(2)];if(!x)return;let n=Math.max(0,Math.min(99,(cart[id]||0)+d));if(d>0&&!dealOk(x))n=cart[id]||0;cart[id]=n;if(!cart[id])delete cart[id];save();dealsDraw();drawCart();return}const p=byId[id];if(!p)return;let n=Math.max(0,(cart[id]||0)+d);if(p.s!=null)n=Math.min(n,p.s);cart[id]=n;if(!cart[id])delete cart[id];save();draw();drawCart()}
 function chips(){
  const ix=CATS.map((c,i)=>i).filter(i=>cnt[i]>0),n=ix.reduce((a,i)=>a+cnt[i],0);
  $('chips').innerHTML=`<button class="chip ${cat<0?'on':''}" data-i="-1">${t('All')}<em>${n}</em></button>`+ix.map(i=>{const c=CATS[i];return `<button class="chip ${cat===i?'on':''}" style="--c:${c.c}" data-i="${i}">${esc(cnm(i))}<em>${cnt[i]}</em></button>`}).join('');
@@ -193,7 +194,7 @@ async function refresh(){
  if(!D){try{const r=await fetch('/catalog.json');load(await r.json())}catch(e){$('g').innerHTML='<p class="mu">'+t('No match. Message us on WhatsApp and we will check availability for you.')+'</p>'}}
 }
 try{const s=localStorage.getItem('oxd');if(s)load(JSON.parse(s))}catch(e){}
-const hc=()=>{const m=location.hash.match(/^#c(\d+)$/);if(m){cat=+m[1];if(D){chips();draw()}setTimeout(()=>$('shop').scrollIntoView(),50)}};hc();addEventListener('hashchange',hc);
+const hc=()=>{if(location.hash==='#deals'){setTimeout(()=>{const e=$('deals');if(e&&!e.hidden)e.scrollIntoView()},50);return}const m=location.hash.match(/^#c(\d+)$/);if(m){cat=+m[1];if(D){chips();draw()}setTimeout(()=>$('shop').scrollIntoView(),50)}};hc();addEventListener('hashchange',hc);
 stat();refresh();
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){refresh();flushOrders(3000)}});
 addEventListener('online',()=>flushOrders(0));setTimeout(()=>flushOrders(3000),2000);
@@ -383,3 +384,25 @@ $('trk').addEventListener('click',async e=>{
 });
 // When the app opens: orders sent before notifications were on get linked now.
 setTimeout(()=>{if(pushOK&&Notification.permission==='granted'){const l=linked(),us=mine().filter(active).map(o=>o.u).filter(u=>!l.includes(u));if(us.length)orderPush(us,false)}},4000);
+
+/* ===== Flash deals and bundles of the week (made in the command center) ===== */
+Object.assign(TR,{"Deals of the week":"عروض الأسبوع","⚡ Flash deal":"⚡ عرض سريع","🎁 Bundle of the week":"🎁 باقة الأسبوع","🎁 In a bundle":"🎁 ضمن باقة","Ends in":"ينتهي خلال","Add deal":"أضف العرض","Ended":"انتهى","Not available now":"غير متوفر حالياً","You save":"توفّر","d":"ي","Limited time. Prices checked when you send your order.":"لفترة محدودة. يتم التحقق من السعر عند إرسال الطلب."});
+function dealOn(x,now){now=now||Date.now();return !!x&&!!x.on&&(!x.st||Date.parse(x.st)<=now)&&(!x.end||Date.parse(x.end)>now)}
+function dealOk(x){return x.items.every(i=>byId[i.id]&&!out(byId[i.id])&&(byId[i.id].s==null||byId[i.id].s>=i.q))}
+const dt=d=>LANG==='ar'&&d.ta?d.ta:d.t,dsx=d=>LANG==='ar'&&d.sa?d.sa:d.s;
+function dmsg(d,l){const ps=d.items.map(i=>i.q+'× '+i.id+(byId[i.id]?' '+(l==='ar'?(byId[i.id].a||byId[i.id].n):byId[i.id].n):'')).join(', ');return (d.k==='f'?'⚡ ':'🎁 ')+((l==='ar'&&d.ta)||d.t)+' ('+ps+') '+money(d.pr)}
+function inDeal(id){for(const k in DL){if(DL[k].items.some(i=>i.id===id))return DL[k]}return null}
+function cdTxt(end){let s=Math.max(0,Math.floor((Date.parse(end)-Date.now())/1000));if(!s)return t('Ended');const d=Math.floor(s/86400);s%=86400;const p=n=>String(n).padStart(2,'0');return t('Ends in')+' ⁦'+(d?d+t('d')+' ':'')+p(Math.floor(s/3600))+':'+p(Math.floor(s%3600/60))+':'+p(s%60)+'⁩'}
+function dealsDraw(){
+ const sec=$('deals');if(!sec)return;const L=Object.values(DL).sort((a,b)=>(a.k==='f'?0:1)-(b.k==='f'?0:1)||(Date.parse(a.end||'2100-01-01')-Date.parse(b.end||'2100-01-01')));
+ sec.hidden=!L.length;if(!L.length)return;
+ $('dlg').innerHTML=L.map(d=>{const ok=dealOk(d),k='D:'+d.id,was=SHOW_PRICES&&d.items.every(i=>byId[i.id]&&byId[i.id].pr>0)?d.items.reduce((s,i)=>s+byId[i.id].pr*i.q,0):0,off=was>d.pr?Math.round((1-d.pr/was)*100):0;
+  return `<article class="dl ${d.k==='f'?'f':'b'}"><div class="dl-h"><span class="dl-b">${t(d.k==='f'?'⚡ Flash deal':'🎁 Bundle of the week')}</span>${d.end?`<span class="cd" data-end="${esc(d.end)}">${cdTxt(d.end)}</span>`:''}</div>
+<h3>${esc(dt(d))}</h3>${dsx(d)?`<p class="mu sm">${esc(dsx(d))}</p>`:''}
+<ul class="dl-i">${d.items.map(i=>{const p=byId[i.id];if(!p)return '';const c=CATS[p.ci];return `<li><span class="dl-th" style="--c:${c.c}">${p.im?`<img src="${esc(p.im)}" alt="" loading="lazy">`:`<span aria-hidden="true">${c.e}</span>`}</span><span><b dir="ltr">${i.q}×</b> ${esc(nm(p))} <span class="mu sm" dir="ltr">${p.id}</span></span></li>`}).join('')}</ul>
+<div class="dl-f"><div class="dl-p">${was>d.pr?`<s dir="ltr">${money(was)}</s>`:''}<b dir="ltr">${money(d.pr)}</b>${off?`<em>${t('You save')} ⁦${off}%⁩</em>`:''}</div>${!ok?`<span class="mu sm">${t('Not available now')}</span>`:cart[k]?stepper(k):`<button class="ad" onclick="ch('${k}',1)">${t('Add deal')}</button>`}</div></article>`}).join('');
+}
+setInterval(()=>{if(!D||document.hidden)return;
+ const now=Date.now(),ids=(D.deals||[]).filter(x=>dealOn(x,now)).map(x=>x.id).join();
+ if(ids!==Object.keys(DL).join()){DL={};(D.deals||[]).forEach(x=>{if(dealOn(x,now))DL[x.id]=x});Object.keys(cart).forEach(k=>{if(isD(k)&&!DL[k.slice(2)])delete cart[k]});save();all();return}
+ document.querySelectorAll('#dlg .cd').forEach(e=>{e.textContent=cdTxt(e.dataset.end)})},1000);

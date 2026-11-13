@@ -73,6 +73,7 @@ function changes() {
   a.forEach((v, k) => { if (!seen.has(k)) n++; });
   if (snap(W.cats) !== snap(LIVE.cats)) n++;
   if (snap(W.banners || []) !== snap(LIVE.banners || [])) n++;
+  if (snap(W.deals || []) !== snap(LIVE.deals || [])) n++;
   const s1 = { ...W.set, upd: 0 }, s2 = { ...LIVE.set, upd: 0 };
   if (snap(s1) !== snap(s2)) n++;
   return n;
@@ -95,6 +96,7 @@ $("publish").onclick = async () => {
   } catch (e) {
     if (e.status === 401) return;
     toast(e.message === "conflict" ? "Someone else published changes. Reload the page to get them, then redo your edits."
+      : e.message === "invalid" && /deal/.test((e.body && e.body.detail) || "") ? dealErr(e.body.detail)
       : e.message === "invalid" ? "Some details are not valid (" + ((e.body && e.body.detail) || "") + "). Fix them and publish again."
       : "Could not publish. Your edits are kept here; try again.");
   } finally { b.textContent = "Publish changes"; state(); }
@@ -106,11 +108,11 @@ document.querySelector("nav.tabs").onclick = (e) => {
   const b = e.target.closest("button[data-t]"); if (!b) return;
   TAB = b.dataset.t;
   document.querySelectorAll("nav.tabs button").forEach((x) => x.setAttribute("aria-selected", x === b ? "true" : "false"));
-  ["products", "orders", "banners", "cats", "push", "settings"].forEach((t) => ($("t-" + t).hidden = t !== TAB));
+  ["products", "orders", "banners", "deals", "cats", "push", "settings"].forEach((t) => ($("t-" + t).hidden = t !== TAB));
   render();
   if (TAB === "orders") loadOrders();
 };
-function render() { state(); ({ products: renderProducts, orders: renderOrders, banners: renderBanners, cats: renderCats, push: renderPush, settings: renderSettings })[TAB](); }
+function render() { state(); ({ products: renderProducts, orders: renderOrders, banners: renderBanners, deals: renderDeals, cats: renderCats, push: renderPush, settings: renderSettings })[TAB](); }
 
 /* ---------- Products ---------- */
 const live = (id) => LIVE.items.find((i) => i.id === id);
@@ -288,6 +290,74 @@ function renderBanners() {
   };
   $("badd").onclick = () => { B.push({ im: "", t: "New offer", ta: "", s: "", sa: "", l: "Offer", la: "عرض", go: "", bg: "#001765", on: 1 }); renderBanners(); state(); $("blist").lastElementChild.scrollIntoView({ block: "center" }); };
 }
+
+/* ---------- Flash deals and bundles of the week ---------- */
+// A flash deal is one or more products at a deal price until a set time; a bundle groups products at one price.
+// Customers see live deals at the top of the catalogue with a countdown, and add them to their order in one tap.
+const dealState = (d) => { const now = Date.now(); if (!d.on) return ["off", "Switched off"]; if (d.st && Date.parse(d.st) > now) return ["soon", "Starts " + when(d.st)]; if (d.end && Date.parse(d.end) <= now) return ["end", "Ended"]; return ["live", d.end ? "Live until " + when(d.end) : "Live"]; };
+const isoOf = (v) => { if (!v) return ""; const d = new Date(v); return isNaN(d) ? "" : d.toISOString(); };
+function renderDeals() {
+  const el = $("t-deals"); W.deals = W.deals || []; const L = W.deals;
+  const nrm = (d) => { let s = 0; for (const x of d.items) { const p = gi(x.id); if (!p || !(p.p > 0)) return 0; s += p.p * x.q; } return s; };
+  const pub = (d) => { const l = (LIVE.deals || []).find((x) => x.id === d.id); return l && snap(l) === snap(d); };
+  el.innerHTML = `<div class="panel"><h2 style="font-size:18px">Flash deals and bundles of the week</h2>
+<p class="mu sm" style="margin:0">Live deals show at the top of the catalogue, highlighted, with a countdown to the end time. Customers add a deal to their order in one tap, and the deal price is checked again when the order arrives. Publish changes to put deals live, then tap "Notify customers" to send a push notification.</p>
+<datalist id="dlp">${W.items.filter((i) => !i.off).map((i) => `<option value="${esc(i.id)}">${esc(i.n)}</option>`).join("")}</datalist>
+<div id="dlist">${L.length ? L.map((d, n) => { const [sk, sl] = dealState(d), nv = nrm(d);
+  return `<div class="dle" data-n="${n}"><div class="row"><span class="dlk ${d.k}">${d.k === "f" ? "⚡ Flash deal" : "🎁 Bundle"}</span><b>${esc(d.t || "(no title)")}</b><span class="dls ${sk}">${esc(sl)}</span><span class="sp"></span>
+<label class="row sm" style="gap:6px"><span class="sw"><input type="checkbox" data-f="on" ${d.on ? "checked" : ""}><i></i></span> On</label><button class="btn dng" data-del>Delete</button></div>
+<div class="g2"><label class="f">Type<select data-f="k"><option value="f" ${d.k === "f" ? "selected" : ""}>Flash deal (needs an end time)</option><option value="b" ${d.k === "b" ? "selected" : ""}>Bundle of the week</option></select></label><span></span>
+<label class="f">Title (English)<input data-f="t" value="${esc(d.t)}" maxlength="80" placeholder="e.g. Burn care kit"></label><label class="f">Title (Arabic)<input class="ar" dir="rtl" data-f="ta" value="${esc(d.ta)}" maxlength="80"></label>
+<label class="f">Short text (English)<input data-f="s" value="${esc(d.s)}" maxlength="160" placeholder="e.g. This weekend only"></label><label class="f">Short text (Arabic)<input class="ar" dir="rtl" data-f="sa" value="${esc(d.sa)}" maxlength="160"></label></div>
+<div class="dlit"><b class="sm">Products in this deal</b>${d.items.map((x, j) => { const p = gi(x.id); return `<div class="row" data-j="${j}"><code>${esc(x.id)}</code><span style="flex:1;min-width:140px">${esc(p ? p.n : "Product not found")}${p && p.off ? ' <span class="mu sm">(offline)</span>' : ""}${p && p.s === 0 ? ' <span class="err sm">(out of stock)</span>' : ""}</span><label class="row sm" style="gap:6px">Qty<input type="number" min="1" max="99" step="1" data-q value="${x.q}" style="width:70px"></label><button class="btn" data-rm aria-label="Remove product">✕</button></div>`; }).join("") || '<p class="mu sm" style="margin:4px 0">Add at least one product.</p>'}
+<div class="row"><input list="dlp" data-add placeholder="Type a ref or pick a product" style="flex:1;min-width:180px" aria-label="Add a product"><button class="btn" data-addb>+ Add product</button></div></div>
+<div class="g2"><label class="f">Deal price ($)<input type="number" min="0" step="0.01" data-f="pr" value="${d.pr || ""}" placeholder="0.00"></label><p class="mu sm" style="align-self:end;margin:0 0 10px">${nv ? `Normal price $${nv.toFixed(2)}${d.pr > 0 && d.pr < nv ? `, customers save ${Math.round((1 - d.pr / nv) * 100)}%` : ""}` : "Normal price shows when every product has a price."}</p>
+<label class="f">Starts (leave empty to start now)<input type="datetime-local" data-f="st" value="${localDT(d.st)}"></label><label class="f">Ends${d.k === "f" ? "" : " (optional)"}<input type="datetime-local" data-f="end" value="${localDT(d.end)}"></label></div>
+<div class="row"><button class="btn" data-ntf ${pub(d) && sk === "live" && ME.push ? "" : "disabled"}>📣 Notify customers</button><span class="mu sm" data-msg>${!ME.push ? "Notifications are not set up yet." : !pub(d) ? "Publish changes first, then you can notify customers." : sk !== "live" ? "You can notify customers while the deal is live." : ""}</span></div>
+</div>`; }).join("") : '<p class="mu">No deals yet.</p>'}</div>
+<div class="row"><button class="btn pri" id="dfl">+ Flash deal</button><button class="btn pri" id="dbu">+ Bundle of the week</button></div></div>`;
+  const at = (e) => { const r = e.target.closest(".dle"); return r ? [r, L[+r.dataset.n]] : []; };
+  const D = $("dlist");
+  D.oninput = (e) => { const [r, d] = at(e); if (!d) return; const f = e.target.dataset.f;
+    if (f === "t" || f === "ta" || f === "s" || f === "sa") { d[f] = e.target.value; if (f === "t") r.querySelector(".row b").textContent = d.t || "(no title)"; state(); }
+    if (f === "pr") { d.pr = Math.round((+e.target.value || 0) * 100) / 100; state(); }
+    if (e.target.hasAttribute("data-q")) { const j = +e.target.closest("[data-j]").dataset.j; d.items[j].q = Math.max(1, Math.min(99, Math.floor(+e.target.value) || 1)); state(); }
+  };
+  D.onchange = (e) => { const [, d] = at(e); if (!d) return; const f = e.target.dataset.f;
+    if (f === "on") d.on = e.target.checked ? 1 : 0;
+    else if (f === "k") d.k = e.target.value;
+    else if (f === "st" || f === "end") d[f] = isoOf(e.target.value);
+    else if (f === "pr" || e.target.hasAttribute("data-q")) {} else return;
+    // Re-drawn after the event, so a box losing focus while the list is redrawn can't trip it up.
+    clearTimeout(renderDeals.t); renderDeals.t = setTimeout(() => { if (TAB === "deals") renderDeals(); }, 0); state();
+  };
+  const add = (r, d) => { const inp = r.querySelector("[data-add]"), v = inp.value.trim(), p = gi(v) || W.items.find((i) => i.n.toLowerCase() === v.toLowerCase());
+    if (!p) { toast("No product with that ref. Pick one from the list."); return; }
+    const have = d.items.find((x) => x.id === p.id); if (have) have.q++; else if (d.items.length < 10) d.items.push({ id: p.id, q: 1 }); else { toast("A deal can have up to 10 products."); return; }
+    renderDeals(); state(); const nr = $("dlist").querySelector(`.dle[data-n="${L.indexOf(d)}"] [data-add]`); if (nr) nr.focus(); };
+  D.onkeydown = (e) => { if (e.key === "Enter" && e.target.hasAttribute("data-add")) { e.preventDefault(); const [r, d] = at(e); add(r, d); } };
+  D.onclick = async (e) => { const [r, d] = at(e); if (!d) return;
+    if (e.target.closest("[data-addb]")) return add(r, d);
+    const rm = e.target.closest("[data-rm]"); if (rm) { d.items.splice(+rm.closest("[data-j]").dataset.j, 1); renderDeals(); state(); return; }
+    const del = e.target.closest("[data-del]"); if (del && confirmTwice(del, "Tap again to delete")) { L.splice(L.indexOf(d), 1); renderDeals(); state(); return; }
+    const nb = e.target.closest("[data-ntf]"); if (!nb || !confirmTwice(nb, "Tap again to send to " + (ME.subscribers || 0) + " phones")) return;
+    const msg = r.querySelector("[data-msg]"); nb.disabled = true; msg.textContent = "Sending…";
+    const n = d.items.reduce((a, x) => a + x.q, 0), endTxt = d.end ? " Ends " + new Date(d.end).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) + "." : "";
+    try {
+      const x = await api("/api/admin/push", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
+        title: (d.k === "f" ? "⚡ Flash deal: " : "🎁 Bundle of the week: ") + d.t,
+        body: (d.s ? d.s + " " : "") + `${n} ${n === 1 ? "item" : "items"} for $${d.pr.toFixed(2)}.` + endTxt, url: "/#deals" }) });
+      msg.textContent = `Sent to ${x.sent} ${x.sent === 1 ? "phone" : "phones"}.` + (x.failed ? ` ${x.failed} could not be reached.` : "");
+    } catch (err) { if (err.status !== 401) msg.textContent = "Could not send. Try again in a minute."; }
+    finally { nb.disabled = false; nb.textContent = "📣 Notify customers"; }
+  };
+  const mk = (k) => { const now = Date.now(), end = new Date(now + (k === "f" ? 2 : 7) * 864e5); end.setMinutes(0, 0, 0);
+    L.unshift({ id: Math.random().toString(36).slice(2, 10).padEnd(6, "0"), k, t: k === "f" ? "Flash deal" : "Bundle of the week", ta: k === "f" ? "عرض سريع" : "باقة الأسبوع", s: "", sa: "", items: [], pr: 0, st: "", end: end.toISOString(), on: 1 });
+    renderDeals(); state(); };
+  $("dfl").onclick = () => mk("f"); $("dbu").onclick = () => mk("b");
+}
+
+function dealErr(d) { const [k, n] = String(d).replace("Error: ", "").split(":"); return `Deal ${n} on the Deals tab ` + ({ deal_without_products: "has no products.", deal_without_price: "has no deal price.", flash_deal_without_end: "is a flash deal without an end time." }[k] || "is not complete.") + " Fix it and publish again."; }
 
 /* ---------- Categories ---------- */
 function renderCats() {
