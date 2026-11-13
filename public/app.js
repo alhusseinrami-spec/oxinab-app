@@ -30,7 +30,7 @@ Object.assign(TR,{"My orders":"طلباتي","Received":"تم الاستلام",
 "Find an order":"ابحث عن طلب","Sent from another phone? Enter the order number and the phone number you gave.":"أرسلته من هاتف آخر؟ أدخل رقم الطلب ورقم الهاتف الذي أعطيته.",
 "Order number":"رقم الطلب","Find":"بحث","Order not found. Check the order number and phone number.":"لم يتم العثور على الطلب. تحقّق من رقم الطلب ورقم الهاتف.",
 "Too many tries. Please wait a few minutes.":"محاولات كثيرة. يرجى الانتظار بضع دقائق.","Could not connect. Check your internet.":"تعذّر الاتصال. تحقّق من الإنترنت.",
-"Updated":"آخر تحديث","Back":"رجوع","Your driver":"السائق","is on the way":"في الطريق إليك","Call driver":"اتصل بالسائق","Waiting for the driver's location…":"بانتظار موقع السائق…","Driver's location":"موقع السائق","seconds ago":"ثانية مضت","minutes ago":"دقيقة مضت","We are getting your order ready.":"نقوم بتجهيز طلبك.","Prices to be confirmed":"الأسعار تُؤكَّد لاحقاً"});
+"Updated":"آخر تحديث","Back":"رجوع","Get a notification when your order is confirmed, on its way and delivered.":"احصل على إشعار عند تأكيد طلبك وخروجه للتوصيل ووصوله.","Turn on":"تفعيل","Order notifications are on.":"إشعارات الطلبات مفعّلة.","Notifications are blocked for this site. Allow them in your phone settings to hear about your order.":"الإشعارات محظورة لهذا الموقع. اسمح بها من إعدادات الهاتف لتصلك أخبار طلبك.","To get order notifications on iPhone, add Oxinab to your home screen and open it from there.":"لتصلك إشعارات الطلبات على الآيفون، أضف أوكسيناب إلى الشاشة الرئيسية وافتحه من هناك.","Your driver":"السائق","is on the way":"في الطريق إليك","Call driver":"اتصل بالسائق","Waiting for the driver's location…":"بانتظار موقع السائق…","Driver's location":"موقع السائق","seconds ago":"ثانية مضت","minutes ago":"دقيقة مضت","We are getting your order ready.":"نقوم بتجهيز طلبك.","Prices to be confirmed":"الأسعار تُؤكَّد لاحقاً"});
 const TITLE='Oxinab Catalogue', CUR='$';
 let D=null,CATS=[],P=[],byId={},cnt=[],SHOW_PRICES=false,WA='96176878113',LOW=0;
 let LANG='en';try{LANG=localStorage.getItem('oxl')||((navigator.language||'').slice(0,2)==='ar'?'ar':'en')}catch(e){}
@@ -160,7 +160,7 @@ $('wa').addEventListener('click',async e=>{
  let ok=false;
  try{const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),3000);
   const r=await fetch('/api/order',{method:'POST',headers:{'content-type':'application/json'},body,keepalive:true,signal:ac.signal});clearTimeout(tm);
-  if(r.ok){ok=true;obxSet(obx().filter(x=>x.id!==id));try{const j=await r.json();remember(id,j.u)}catch(e){}}else diag('order_http_'+r.status);
+  if(r.ok){ok=true;obxSet(obx().filter(x=>x.id!==id));try{const j=await r.json();remember(id,j.u);if(j.u)orderPush([j.u],false)}catch(e){}}else diag('order_http_'+r.status);
  }catch(err){diag('order_net_'+(err&&err.name||'err'))}
  toast(ok?(LANG==='ar'?'تم استلام الطلب رقم '+id+'. تابعه في «طلباتي».':'Order #'+id+' received. Follow it in My orders.'):(LANG==='ar'?'الطلب محفوظ على هاتفك وسيُرسل لاحقاً':'Order saved on your phone, it will be sent when you are back online'));
  OID=newOID();sending=false;
@@ -313,6 +313,7 @@ function trkDraw(){
  const keep=el.querySelector('#trkq')?{q:el.querySelector('#trkq').value,p:el.querySelector('#trkp').value,m:el.querySelector('#trkm').textContent}:null;
  const open=new Set([...el.querySelectorAll('details[open]')].map(x=>x.closest('.tc').dataset.id));
  el.innerHTML=`<div class="trk-h"><div class="wrap"><button id="trkx" aria-label="${t('Back')}">${LANG==='ar'?'→':'←'}</button><h2 id="trkt">${t('My orders')}</h2>${a.some(active)?`<span class="trk-live"><i></i>${t('Live')}</span>`:''}</div></div><div class="wrap">`
+ +ntBanner(a)
  +(a.length?a.map(tcard).join(''):`<div class="trk-e"><span aria-hidden="true">📦</span>${t('No orders on this phone yet. Orders you send from the app appear here, and you can follow them live.')}</div>`)
  +(trkLast?`<p class="tc-u">${t('Updated')}: <span dir="ltr">${new Date(trkLast).toLocaleTimeString(LANG==='ar'?'ar-LB':'en-GB',{hour:'numeric',minute:'2-digit',second:'2-digit'})}</span></p>`:'')
  +`<div class="trk-f"><h3>${t('Find an order')}</h3><p>${t('Sent from another phone? Enter the order number and the phone number you gave.')}</p><form id="trkfm"><input id="trkq" placeholder="${t('Order number')}" autocomplete="off" autocapitalize="characters" maxlength="7" dir="ltr" aria-label="${t('Order number')}"><input id="trkp" type="tel" placeholder="${t('Phone number')}" dir="ltr" aria-label="${t('Phone number')}" value="${esc(who().phone)}"><button>${t('Find')}</button></form><p id="trkm" role="status" style="margin:8px 0 0"></p></div></div>`;
@@ -348,3 +349,37 @@ if(location.hash==='#orders')setTimeout(trkOpen,0);
 // When the app opens: check orders still on their way, and point out any change.
 setTimeout(async()=>{if(!mine().some(active))return;const ch=await trkPoll();trkDot();if($('trk').hidden)ch.forEach(id=>{const o=mine().find(x=>x.id===id);if(o&&o.d)hint(o)})},3200);
 trkDot();
+
+/* ===== Order notifications =====
+   With the client's permission, the phone's push address is linked to their orders, so they are told when an order
+   is confirmed (with the delivery time), on its way, and delivered. */
+const LNK='oxnl';
+const linked=()=>{try{return JSON.parse(localStorage.getItem(LNK)||'[]')}catch(e){return []}};
+async function orderPush(us,ask){
+ if(!pushOK||!us.length)return false;
+ if(Notification.permission==='denied'||(Notification.permission==='default'&&!ask))return false;
+ try{
+  if(!PK)PK=(await (await fetch('/api/push/key',{cache:'no-store'})).json()).key;if(!PK)return false;
+  if(Notification.permission==='default'&&await Notification.requestPermission()!=='granted')return false;
+  const reg=await navigator.serviceWorker.ready;
+  const sub=await reg.pushManager.getSubscription()||await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u(PK)});
+  const r=await fetch('/api/push/subscribe',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({subscription:sub,orders:us,lang:LANG})});
+  if(!r.ok)return false;
+  try{const l=new Set(linked());us.forEach(u=>l.add(u));localStorage.setItem(LNK,JSON.stringify([...l].slice(-40)))}catch(e){}
+  return true;
+ }catch(e){return false}
+}
+function ntBanner(a){
+ const act=a.filter(active);if(!act.length)return '';
+ if(!pushOK)return isIOS&&!standalone()?`<div class="nt-b"><span aria-hidden="true">🔔</span><p>${t('To get order notifications on iPhone, add Oxinab to your home screen and open it from there.')}</p></div>`:'';
+ if(Notification.permission==='denied')return `<div class="nt-b"><span aria-hidden="true">🔕</span><p>${t('Notifications are blocked for this site. Allow them in your phone settings to hear about your order.')}</p></div>`;
+ const l=linked();if(Notification.permission==='granted'&&act.every(o=>l.includes(o.u)))return '';
+ return `<div class="nt-b"><span aria-hidden="true">🔔</span><p>${t('Get a notification when your order is confirmed, on its way and delivered.')}</p><button id="ntOn">${t('Turn on')}</button></div>`;
+}
+$('trk').addEventListener('click',async e=>{
+ const b=e.target.closest('#ntOn');if(!b)return;b.disabled=true;
+ const ok=await orderPush(mine().filter(active).map(o=>o.u),true);
+ if(ok)toast(t('Order notifications are on.'));trkDraw();
+});
+// When the app opens: orders sent before notifications were on get linked now.
+setTimeout(()=>{if(pushOK&&Notification.permission==='granted'){const l=linked(),us=mine().filter(active).map(o=>o.u).filter(u=>!l.includes(u));if(us.length)orderPush(us,false)}},4000);

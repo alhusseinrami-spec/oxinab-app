@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { json, guard, isAdmin, driverFromReq, sameOrigin, blobReady } from "../_lib.js";
-import { loadOrders, applyStatus, setEta, updateTrack, findOrder, getState, setState, STATUSES, ORDER_ID } from "../_orders.js";
+import { notifyOrder, loadOrders, applyStatus, setEta, updateTrack, findOrder, getState, setState, STATUSES, ORDER_ID } from "../_orders.js";
 import { loadDrivers, saveDrivers, hashPin, normPhone, pinVer, publicDriver } from "../_drivers.js";
 import { kvOn, kvSet } from "../_kv.js";
 
@@ -102,7 +102,10 @@ export async function POST(req) {
   if (hasStatus) tracked = await applyStatus(id, b.status);
   if (hasEta) {
     await setEta(id, eta);
-    tracked = !!(await updateTrack(id, (d) => { d.eta = eta; }).catch(() => null)) && tracked;
+    let doc = null, changedEta = false;
+    tracked = !!(await updateTrack(id, (d) => { changedEta = d.eta !== eta; d.eta = eta; doc = d; }).catch(() => null)) && tracked;
+    // Tell the client about a new delivery time once the order is confirmed (a "new" order gets it in the confirmation).
+    if (eta && changedEta && doc && ["confirmed", "preparing", "out"].includes(doc.status) && !(hasStatus && b.status === "confirmed")) await notifyOrder(id, "eta", doc);
   }
   return json({ ok: true, tracked });
 }

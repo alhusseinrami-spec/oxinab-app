@@ -1,5 +1,5 @@
 /* Oxinab service worker: makes the catalogue installable and usable offline, and shows offer notifications. */
-const V = "oxinab-v15";
+const V = "oxinab-v16";
 const SHELL = ["/", "/styles.css", "/app.js", "/logo.jpg", "/catalog.json", "/manifest.webmanifest", "/icons/icon-192.png"];
 
 self.addEventListener("install", (e) => {
@@ -38,7 +38,7 @@ self.addEventListener("push", (e) => {
   let d = {};
   try { d = e.data ? e.data.json() : {}; } catch { d = { title: "Oxinab", body: e.data ? e.data.text() : "" }; }
   e.waitUntil(self.registration.showNotification(d.title || "Oxinab", {
-    body: d.body || "", icon: "/icons/icon-192.png", badge: "/icons/icon-192.png", data: { url: d.url || "/" }, tag: "oxinab-offer", renotify: true,
+    body: d.body || "", icon: "/icons/icon-192.png", badge: "/icons/icon-192.png", data: { url: d.url || "/" }, tag: d.tag || "oxinab-offer", renotify: true,
   }));
 });
 self.addEventListener("notificationclick", (e) => {

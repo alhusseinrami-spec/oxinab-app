@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { put, list, del } from "@vercel/blob";
 import { json, blobReady, sameOrigin } from "../_lib.js";
+import { trackPath, linkOrderPush } from "../_orders.js";
 
 const PUSH_HOSTS = /(^|\.)(fcm\.googleapis\.com|push\.services\.mozilla\.com|notify\.windows\.com|push\.apple\.com|web\.push\.apple\.com)$/;
 function parse(b) {
@@ -18,6 +19,15 @@ export async function POST(req) {
   let b = {}; try { b = await req.json(); } catch {}
   const sub = parse(b);
   if (!sub) return json({ error: "bad_subscription" }, 400);
+  // Order notifications: { subscription, orders: [tracking address…], lang }. Each address proves the phone sent that order.
+  if (Array.isArray(b.orders)) {
+    let linked = 0;
+    for (const u of b.orders.slice(0, 30)) {
+      const m = String(u || "").match(/track\/([A-Z0-9]{6})-([0-9a-f]{16})\.json$/);
+      if (m && trackPath(m[1]) === `track/${m[1]}-${m[2]}.json` && (await linkOrderPush(m[1], sub, b.lang))) linked++;
+    }
+    if (!b.offers) return json({ ok: true, linked });
+  }
   const k = key(sub.endpoint);
   const have = await list({ prefix: k, limit: 1 });
   if (!have.blobs.length) await put(k + ".json", JSON.stringify(sub), { access: "public", addRandomSuffix: true, contentType: "application/json" });

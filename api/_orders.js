@@ -4,7 +4,8 @@
 import { createHash, createHmac, createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import { put, head } from "@vercel/blob";
 import { listAll } from "./_lib.js";
-import { kvOn, kvGet, kvSet } from "./_kv.js";
+import { kvOn, kvGet, kvSet, kv } from "./_kv.js";
+import { sendPush } from "./_push.js";
 
 // "new" is shown to clients as "Received". "out" is "Out for delivery".
 export const STATUSES = ["new", "confirmed", "preparing", "out", "delivered", "cancelled"];
@@ -118,8 +119,11 @@ export async function setState(k, v) {
 // Set an order's status everywhere: the command center's log, the client's tracking page and the driver's list.
 export async function applyStatus(id, status) {
   await setStatus(id, status);
+  let changed = false, doc = null;
   const tracked = await updateTrack(id, (d) => {
+    doc = d;
     if (d.status === status) return;
+    changed = true;
     const now = new Date().toISOString();
     d.status = status;
     if (status !== "cancelled") {
@@ -131,5 +135,47 @@ export async function applyStatus(id, status) {
   }).catch((e) => { console.error("track.update_failed", id, e && e.message); return null; });
   const as = await getState("assign");
   if (as && as[id] && as[id].st !== status) { as[id].st = status; as[id].stAt = Date.now(); await setState("assign", as); }
+  if (changed && ["confirmed", "out", "delivered"].includes(status)) await notifyOrder(id, status, doc);
   return !!tracked;
+}
+
+/* ---------- Order notifications on the client's phone ----------
+   When a client turns on notifications in the app, their phone's push address is kept for each of their orders
+   (osub:<order>, in Redis, for 60 days). They hear when the order is confirmed (with the delivery time if set),
+   when a delivery time is set or changed, when it is on the way, and a thank-you when it is delivered. */
+export async function linkOrderPush(id, sub, lang) {
+  if (!kvOn()) return false;
+  await kvSet("osub:" + id, { sub, lang: lang === "ar" ? "ar" : "en" }, 60 * 86400);
+  return true;
+}
+const when = (iso, lang) => new Date(iso).toLocaleString(lang === "ar" ? "ar-LB" : "en-GB", { timeZone: "Asia/Beirut", weekday: "long", day: "numeric", month: "long", hour: "numeric", minute: "2-digit" });
+function message(kind, id, d, lang) {
+  const eta = d && d.eta ? when(d.eta, lang) : "", drv = d && d.driver ? d.driver.n : "";
+  const ar = lang === "ar";
+  switch (kind) {
+    case "confirmed": return ar
+      ? { title: `تم تأكيد طلبك رقم ${id} ✓`, body: eta ? `موعد التوصيل المتوقع: ${eta}.` : "نقوم بتجهيز طلبك وسنخبرك بموعد التوصيل." }
+      : { title: `Order #${id} confirmed ✓`, body: eta ? `Expected delivery: ${eta}.` : "We're getting it ready and will let you know the delivery time." };
+    case "eta": return ar
+      ? { title: `موعد توصيل طلبك رقم ${id}`, body: `موعد التوصيل المتوقع: ${eta}.` }
+      : { title: `Delivery time for order #${id}`, body: `Expected delivery: ${eta}.` };
+    case "out": return ar
+      ? { title: `طلبك رقم ${id} في الطريق 🛵`, body: (drv ? `السائق ${drv} في الطريق إليك. ` : "") + "تابع التوصيل مباشرة في «طلباتي»." }
+      : { title: `Order #${id} is on the way 🛵`, body: (drv ? `${drv} is on the way to you. ` : "") + "Follow the delivery live in My orders." };
+    case "delivered": return ar
+      ? { title: "شكراً لاختيارك أوكسيناب 💙", body: `تم توصيل طلبك رقم ${id}. نتمنى أن ينال رضاك. لأي سؤال، راسلنا على واتساب.` }
+      : { title: "Thank you for choosing Oxinab 💙", body: `Order #${id} has been delivered. We hope it serves you well. Any questions, we're on WhatsApp.` };
+  }
+  return null;
+}
+export async function notifyOrder(id, kind, doc) {
+  if (!kvOn()) return;
+  try {
+    const rec = await kvGet("osub:" + id); if (!rec) return;
+    const d = doc || (await readTrack(id) || {}).doc;
+    const m = message(kind, id, d, rec.lang); if (!m) return;
+    const r = await sendPush(rec.sub, { ...m, url: "/#orders", tag: "order-" + id });
+    if (r === "gone") await kv("DEL", "osub:" + id);
+    console.log("order.notify", id, kind, r);
+  } catch (e) { console.error("order.notify_failed", id, kind, e && e.message); }
 }
