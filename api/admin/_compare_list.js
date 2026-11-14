@@ -1,10 +1,11 @@
 import { json, guard, listAll } from "../_lib.js";
 import { open, openBytes } from "../_orders.js";
 
-/* Pro-formas that clients uploaded to compare prices (see /api/compare).
+/* GET /api/admin/compare (rewritten to /api/admin/orders?do=compare, to stay within the 12 functions of the Vercel Hobby plan).
+   Pro-formas that clients uploaded to compare prices (see /api/compare).
    GET            → the latest 300 comparisons, newest first, with every line read and Oxinab's price at the time.
    GET ?file=<id> → the original file the client uploaded, to open or download. */
-export async function GET(req) {
+export async function compareList(req) {
   const g = guard(req); if (g) return g;
   const q = new URL(req.url).searchParams, fid = q.get("file");
   if (fid) {

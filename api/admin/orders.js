@@ -3,6 +3,7 @@ import { json, guard, isAdmin, driverFromReq, sameOrigin, blobReady } from "../_
 import { notifyOrder, loadOrders, applyStatus, setEta, updateTrack, findOrder, getState, setState, STATUSES, ORDER_ID } from "../_orders.js";
 import { loadDrivers, saveDrivers, hashPin, normPhone, pinVer, publicDriver } from "../_drivers.js";
 import { kvOn, kvSet } from "../_kv.js";
+import { compareList } from "./_compare_list.js";
 
 /* One route for the command center and the driver app (the free plan allows 12 routes).
    Command center (admin cookie): orders, statuses, delivery times, drivers and who delivers what.
@@ -26,6 +27,7 @@ const myJobs = (as, id) => Object.entries(as || {}).filter(([, j]) => j.d === id
 // The driver app adds ?as=driver, so a phone signed in to both uses its driver account there.
 const asDriver = (req) => !isAdmin(req) || new URL(req.url).searchParams.get("as") === "driver";
 export async function GET(req) {
+  if (new URL(req.url).searchParams.get("do") === "compare") return compareList(req);
   if (asDriver(req)) {
     const { d, err } = await driverGuard(req); if (err) return err;
     return json({ me: { id: d.id, n: d.n }, jobs: myJobs(await getState("assign"), d.id), live: kvOn() });

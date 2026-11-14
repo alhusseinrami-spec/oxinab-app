@@ -3,7 +3,7 @@
   "outputDirectory": "public",
   "cleanUrls": true,
   "functions": {
-    "api/compare.js": {
+    "api/order.js": {
       "maxDuration": 120
     }
   },
@@ -59,6 +59,16 @@
           "value": "public, max-age=604800"
         }
       ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/compare",
+      "destination": "/api/order?do=compare"
+    },
+    {
+      "source": "/api/admin/compare",
+      "destination": "/api/admin/orders?do=compare"
     }
   ],
   "redirects": [

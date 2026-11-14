@@ -1,3 +1,4 @@
+// POST /api/compare (rewritten to /api/order?do=compare, to stay within the 12 functions of the Vercel Hobby plan).
 // A client uploads a pro-forma from another supplier: keep a copy for Oxinab, read it, and say where Oxinab is cheaper.
 // Body: the file itself. Headers: x-file (file name, URL-encoded), x-lang, x-who (URL-encoded JSON: name, phone).
 import { put } from "@vercel/blob";
@@ -13,7 +14,7 @@ const newId = () => { const c = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; return Array
 const str = (v, max) => (typeof v === "string" ? v.replace(/\s+/g, " ").trim().slice(0, max) : "");
 const dec = (v) => { try { return decodeURIComponent(v || ""); } catch { return ""; } };
 
-export async function POST(req) {
+export async function compareUpload(req) {
   if (!sameOrigin(req)) return json({ error: "bad_origin" }, 403);
   if (!blobReady()) return json({ error: "storage_not_connected" }, 503);
   const ip = (req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || "?";
