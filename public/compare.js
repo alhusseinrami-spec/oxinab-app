@@ -157,3 +157,5 @@ $("cmp").addEventListener("change", (e) => {
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") cmpClose(); });
 document.querySelectorAll("[data-cmp]").forEach((b) => (b.onclick = cmpOpen));
 if (location.hash === "#compare") setTimeout(cmpOpen, 0);
+// The deals and compare words are added after app.js first translates the page, so translate it again now.
+stat();
