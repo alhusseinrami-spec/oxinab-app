@@ -1,6 +1,7 @@
 // A customer tapped "Send order on WhatsApp": keep a copy of the order for the command center.
 import { json, blobReady, loadCatalogFast as loadCatalog, sameOrigin, dealLive } from "./_lib.js";
 import { list, put } from "@vercel/blob";
+import { compareUpload } from "./_compare_upload.js";
 import { kvOn, kvGet } from "./_kv.js";
 import { saveOrder, ORDER_ID, trackPath, TRACK_PATH, trackFromOrder, readTrack, writeTrack, phoneKey } from "./_orders.js";
 
@@ -8,6 +9,7 @@ const hits = new Map(); // best effort, per server instance: at most 20 orders a
 const str = (v, max) => (typeof v === "string" ? v.replace(/\s+/g, " ").trim().slice(0, max) : "");
 
 export async function POST(req) {
+  if (new URL(req.url).searchParams.get("do") === "compare") return compareUpload(req);
   console.log("order.in", req.headers.get("origin") || "-", req.headers.get("host") || "-");
   if (!sameOrigin(req)) { console.warn("order.bad_origin", req.headers.get("origin")); return json({ error: "bad_origin" }, 403); }
   if (!blobReady()) return json({ error: "storage_not_connected" }, 503);
