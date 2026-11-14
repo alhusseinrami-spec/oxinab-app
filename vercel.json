@@ -2,6 +2,11 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "outputDirectory": "public",
   "cleanUrls": true,
+  "functions": {
+    "api/compare.js": {
+      "maxDuration": 120
+    }
+  },
   "headers": [
     {
       "source": "/sw.js",

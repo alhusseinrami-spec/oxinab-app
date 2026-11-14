@@ -82,7 +82,7 @@ setTimeout(end,rm?900:2600);})();</script>
 <p>EMS and first aid, burn care, oxygen, diagnostics and home health. Find an item by name or reference, build your order, and send it on WhatsApp.</p>
 <div class="find"><input id="hq" type="search" placeholder="Search e.g. Burnshield, insole, thermometer" aria-label="Search products"><a href="#shop" id="hg">Search</a></div>
 <div class="facts"><span><i aria-hidden="true">🚚</i>Delivery all over Lebanon</span><span><i aria-hidden="true">💬</i>Order on WhatsApp</span><span><i aria-hidden="true">💵</i>Cash on Delivery</span></div>
-<div class="appbar"><button class="appbtn" id="mo">📦 <span>My orders</span><i class="mdot" id="mdot" hidden></i></button><button class="appbtn solid" id="inst" hidden>📲 <span>Install the app</span></button><button class="appbtn" id="ntf" hidden>🔔 <span id="ntft">Get offers on your phone</span></button></div>
+<div class="appbar"><button class="appbtn" id="mo">📦 <span>My orders</span><i class="mdot" id="mdot" hidden></i></button><button class="appbtn solid" id="inst" hidden>📲 <span>Install the app</span></button><button class="appbtn" data-cmp>🧾 <span>Compare a pro-forma</span></button><button class="appbtn" id="ntf" hidden>🔔 <span id="ntft">Get offers on your phone</span></button></div>
 </div></div>
 
 <section class="promo" id="promo" hidden aria-roledescription="carousel" aria-label="Brands and offers"><div class="wrap">
@@ -94,6 +94,8 @@ setTimeout(end,rm?900:2600);})();</script>
 <div class="hd"><h2>Deals of the week</h2><span class="mu sm">Limited time. Prices checked when you send your order.</span></div>
 <div class="dlg" id="dlg"></div>
 </div></section>
+
+<section class="cmpcta"><div class="wrap"><div class="cmpcta-b"><span class="cmp-ic" aria-hidden="true">🧾</span><div><h2>Got a pro-forma from another supplier?</h2><p class="mu">Upload it and see which items are cheaper at Oxinab. Add them to your order in one tap.</p></div><button class="cbtn" data-cmp>Compare prices</button></div></div></section>
 
 <section class="shop" id="shop"><div class="wrap">
 <div class="hd"><h2>Product catalogue</h2><span class="mu sm" id="cnt"></span></div>
@@ -130,5 +132,7 @@ setTimeout(end,rm?900:2600);})();</script>
 <p class="mu sm" style="margin:10px 0 0">Pay cash on delivery. We confirm availability, price and delivery on WhatsApp.</p></div>
 </aside>
 <div class="trk" id="trk" hidden role="dialog" aria-modal="true" aria-labelledby="trkt"></div>
+<div class="trk" id="cmp" hidden role="dialog" aria-modal="true" aria-labelledby="cmpt"></div>
 <script src="/app.js" defer></script>
+<script src="/compare.js" defer></script>
 </body></html>

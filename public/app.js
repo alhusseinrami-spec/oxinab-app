@@ -53,7 +53,7 @@ function stat(){
  const h=document.documentElement;h.lang=LANG;h.dir=LANG==='ar'?'rtl':'ltr';
  const w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);let n;
  while(n=w.nextNode()){
-  if(n.parentElement.closest('script,style,#dlg,#ptrack,#pdots,#trk,#g,#chips,#tabs,#ci,#tt,#cnt,#gi,#cn,#upd,.sheet,.toast'))continue;
+  if(n.parentElement.closest('script,style,#cmp,#dlg,#ptrack,#pdots,#trk,#g,#chips,#tabs,#ci,#tt,#cnt,#gi,#cn,#upd,.sheet,.toast'))continue;
   if(n._o===undefined)n._o=n.nodeValue;
   const k=n._o.trim();if(!k)continue;
   n.nodeValue=LANG==='ar'&&TR[k]?n._o.replace(k,t(k)):n._o;
@@ -65,7 +65,7 @@ function stat(){
  document.title=t(TITLE);updTxt();$('lg').textContent=LANG==='ar'?'EN':'عربي';
 }
 function setLang(){LANG=LANG==='ar'?'en':'ar';try{localStorage.setItem('oxl',LANG)}catch(e){}stat();all()}
-function all(){if(!D)return;promo();dealsDraw();chips();draw();drawCart();trkDraw()}
+function all(){if(!D)return;promo();dealsDraw();chips();draw();drawCart();trkDraw();if(typeof cmpDraw==='function')cmpDraw()}
 
 function load(d){
  D=d;CATS=d.cats;SHOW_PRICES=!!d.set.price;WA=d.set.wa||WA;LOW=d.set.low||0;
@@ -92,7 +92,7 @@ function drawCart(){
  $('tt').innerHTML=pr?`<span>${t('Estimated total')}</span><span dir="ltr">${money(tot())}</span>`:`<span>${t('Items')}</span><span>${qty()}</span>`;
  const a=$('wa');a.classList.toggle('off',!ks.length);
  const U=who(),ul=LANG==='ar'?[U.name&&'الاسم: '+U.name,U.phone&&'الهاتف: '+U.phone,U.addr&&'العنوان: '+U.addr]:[U.name&&'Name: '+U.name,U.phone&&'Phone: '+U.phone,U.addr&&'Address: '+U.addr];
- const head=(LANG==='ar'?'طلب رقم ':'Order #')+OID+'\n',tail=ul.filter(Boolean).length?'\n'+ul.filter(Boolean).join('\n'):'';
+ const cn=typeof cmpNote==='function'?cmpNote():'',head=(LANG==='ar'?'طلب رقم ':'Order #')+OID+'\n',tail=(cn?'\n'+cn:'')+(ul.filter(Boolean).length?'\n'+ul.filter(Boolean).join('\n'):'');
  const msg=head+(LANG==='ar'?'مرحباً أوكسيناب، أود طلب:\n'+ks.map(k=>isD(k)?'• '+dmsg(DL[k.slice(2)],'ar')+' × '+cart[k]:'• '+k+' - '+(byId[k].a||byId[k].n)+' × '+cart[k]).join('\n')+(pr?'\nالمجموع التقريبي: '+money(tot()):'')+'\nالدفع: عند الاستلام':'Hello Oxinab, I would like to order:\n'+ks.map(k=>isD(k)?'• '+dmsg(DL[k.slice(2)],'en')+' x '+cart[k]:'• '+k+' - '+byId[k].n+' x '+cart[k]).join('\n')+(pr?'\nEstimated total: '+money(tot()):'')+'\nPayment: Cash on Delivery')+tail;
  a.href=ks.length?'https://wa.me/'+WA+'?text='+encodeURIComponent(msg):'#';
 }
@@ -156,7 +156,7 @@ let sending=false;
 $('wa').addEventListener('click',async e=>{
  const ks=Object.keys(cart),href=$('wa').href;if(!ks.length){e.preventDefault();return}
  e.preventDefault();if(sending)return;sending=true;
- const id=OID,body=JSON.stringify({id,lang:LANG,...who(),items:ks.map(k=>({id:k,q:cart[k]}))});
+ const id=OID,note=typeof cmpNote==='function'?cmpNote():'',body=JSON.stringify({id,lang:LANG,...who(),note,items:ks.map(k=>({id:k,q:cart[k]}))});if(note)cmpSetNote('');
  obxSet([...obx().filter(x=>x.id!==id),{id,t:Date.now(),body}]);
  let ok=false;
  try{const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),3000);
