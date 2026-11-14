@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Oxinab: medical supplies, ordered in a few taps</title>
+<meta name="description" content="See how pharmacies, medical centers, laboratories, hospitals and clinics order from Oxinab: 1000+ products, deals of the week, orders on WhatsApp and live tracking.">
+<meta property="og:title" content="Oxinab: medical supplies, ordered in a few taps">
+<meta property="og:description" content="Swipe through the Oxinab presentation for pharmacies, medical centers, laboratories, hospitals and clinics.">
+<meta property="og:image" content="https://oxinab.vercel.app/slides/s-01.jpg">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#001765">
+<link rel="icon" href="/icons/favicon-48.png" type="image/png">
+<style>
+/* Oxinab presentation: the customer deck as slides you swipe through in any phone or computer browser. */
+*{box-sizing:border-box}
+:root{--bh:64px}
+@media(orientation:landscape) and (max-height:500px){:root{--bh:46px}.bar button,.bar a{height:36px;min-width:36px}.s{padding:6px}}
+html,body{margin:0;height:100%;background:#000c36;color:#fff;font:600 14px/1.3 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden}
+.track{position:fixed;inset:0 0 var(--bh) 0;display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.track::-webkit-scrollbar{display:none}
+.s{flex:0 0 100%;height:100%;min-width:0;scroll-snap-align:center;scroll-snap-stop:always;display:grid;place-items:center;padding:10px}
+.s img{width:min(100%,calc((100vh - var(--bh) - 20px)*16/9));width:min(100%,calc((100dvh - var(--bh) - 20px)*16/9));height:auto;border-radius:8px;box-shadow:0 10px 40px rgba(0,0,0,.45);background:#001765;display:block}
+.bar{position:fixed;left:0;right:0;bottom:0;height:var(--bh);padding:0 10px calc(env(safe-area-inset-bottom,0px));display:flex;align-items:center;gap:8px;background:#001765}
+.bar button,.bar a{appearance:none;border:0;background:#0a2480;color:#fff;font:inherit;height:42px;min-width:42px;padding:0 14px;border-radius:21px;display:inline-flex;align-items:center;justify-content:center;gap:6px;text-decoration:none;cursor:pointer}
+.bar .go{background:#00b7f0;color:#001765}
+.bar .n{margin:0 auto;font-variant-numeric:tabular-nums;color:#9fd6fb}
+.prog{position:fixed;left:0;bottom:var(--bh);height:3px;background:#00b7f0;transition:width .25s}
+.nav{position:fixed;top:50%;transform:translateY(-50%);width:44px;height:64px;border:0;border-radius:10px;background:rgba(0,23,101,.55);color:#fff;font-size:26px;cursor:pointer;display:none}
+.nav.p{left:8px}.nav.x{right:8px}
+@media(hover:hover) and (min-width:700px){.nav{display:block}}
+.hint{position:fixed;left:50%;top:14px;transform:translateX(-50%);background:rgba(0,23,101,.9);border:1px solid #0a3a8f;padding:8px 14px;border-radius:20px;font-size:13px;color:#c9dcf5;white-space:nowrap;transition:opacity .4s;pointer-events:none}
+@media(orientation:landscape){.hint{display:none}}
+@media(max-width:420px){.bar .t{display:none}}
+.toast{position:fixed;left:50%;bottom:80px;transform:translateX(-50%);background:#0c1a3f;padding:10px 16px;border-radius:12px}
+</style>
+</head>
+<body>
+<div class="track" id="tr" aria-roledescription="carousel" aria-label="Oxinab presentation"></div>
+<div class="prog" id="pg"></div>
+<button class="nav p" id="pv" aria-label="Previous slide">‹</button><button class="nav x" id="nx" aria-label="Next slide">›</button>
+<div class="hint" id="hn">Swipe for the next slide · turn your phone for a bigger view</div>
+<div class="bar">
+<button id="b1" aria-label="Previous slide">‹</button>
+<span class="n" id="nn">1 / 18</span>
+<a href="/slides/Oxinab-presentation.pdf" download aria-label="Download PDF">⬇<span class="t">PDF</span></a>
+<button id="sh" class="go" aria-label="Share">↗<span class="t">Share</span></button>
+<button id="b2" aria-label="Next slide">›</button>
+</div>
+<script>
+(function(){
+ var N=18,tr=document.getElementById('tr'),nn=document.getElementById('nn'),pg=document.getElementById('pg'),cur=0;
+ var h='';for(var i=1;i<=N;i++){var f='/slides/s-'+(i<10?'0':'')+i+'.jpg';h+='<div class="s" role="group" aria-roledescription="slide" aria-label="Slide '+i+' of '+N+'"><img src="'+f+'" alt="Slide '+i+'" width="1920" height="1080" '+(i>2?'loading="lazy"':'')+' decoding="async"></div>'}
+ tr.innerHTML=h;
+ function show(i){cur=i;nn.textContent=(i+1)+' / '+N;pg.style.width=((i+1)/N*100)+'%';try{history.replaceState(null,'','#'+(i+1))}catch(e){}}
+ function go(i){i=Math.max(0,Math.min(N-1,i));tr.scrollTo({left:i*tr.clientWidth,behavior:'smooth'});show(i)}
+ var t;tr.addEventListener('scroll',function(){clearTimeout(t);t=setTimeout(function(){var i=Math.round(tr.scrollLeft/tr.clientWidth);if(i!==cur)show(i);document.getElementById('hn').style.opacity=0},80)},{passive:true});
+ ['pv','b1'].forEach(function(id){document.getElementById(id).onclick=function(){go(cur-1)}});
+ ['nx','b2'].forEach(function(id){document.getElementById(id).onclick=function(){go(cur+1)}});
+ document.addEventListener('keydown',function(e){if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown')go(cur+1);if(e.key==='ArrowLeft'||e.key==='PageUp')go(cur-1);if(e.key==='Home')go(0);if(e.key==='End')go(N-1)});
+ addEventListener('resize',function(){tr.scrollLeft=cur*tr.clientWidth});
+ var start=parseInt((location.hash||'').slice(1),10);if(start>1&&start<=N){requestAnimationFrame(function(){tr.scrollLeft=(start-1)*tr.clientWidth;show(start-1)})}else show(0);
+ setTimeout(function(){document.getElementById('hn').style.opacity=0},6000);
+ document.getElementById('sh').onclick=function(){
+  var url=location.origin+'/slides',txt='Oxinab: medical supplies, ordered in a few taps';
+  if(navigator.share){navigator.share({title:txt,text:txt,url:url}).catch(function(){});return}
+  location.href='https://wa.me/?text='+encodeURIComponent(txt+' '+url);
+ };
+})();
+</script>
+</body></html>
