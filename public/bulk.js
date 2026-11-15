@@ -118,9 +118,10 @@ async function parseXlsx(buf) {
 function bkPlan(rows) {
   const head = (rows[0] || []).map((h) => String(h).trim().toLowerCase());
   const col = (re) => head.findIndex((h) => re.test(h));
-  const C = { id: col(/^(ref|reference|id|item code|code)\b/), n: col(/^(name|description|item description)$|^name \(english\)/), a: col(/^name \(arabic\)|^arabic/), k: col(/^category/), p: col(/^price/), s: col(/^stock|^qty|^quantity|^balance/), on: col(/^online|^shown|^active/), dc: col(/^discount|^disc\b/), ob: col(/^offer buy|^buy\b/), of: col(/^offer free|^free\b/), xo: col(/^choose one|^either/) };
+  const C = { id: col(/^(ref|reference|id|item code|code)\b/), n: col(/^(name|description|item description)$|^name \(english\)/), a: col(/^name \(arabic\)|^arabic/), k: col(/^category/), p: col(/^price/), s: col(/^stock|^qty|^quantity|^balance/), on: col(/^online|^shown|^active/), dc: col(/^discount|^disc\b/), ob: col(/^offer buy|^buy\b/), of: col(/^offer free|^free\b/), xo: col(/^choose one|^either/), im: col(/^(image|photo|picture)/) };
   if (C.id < 0) return { fatal: 'The first row needs a "Ref" column. Use the file from "Download Excel" as the starting point.' };
-  if (C.p < 0 && C.s < 0 && C.on < 0 && C.dc < 0 && C.ob < 0) return { fatal: 'No "Price", "Stock", "Online", "Discount" or "Offer" column was found in the first row.' };
+  if (C.p < 0 && C.s < 0 && C.on < 0 && C.dc < 0 && C.ob < 0 && C.im < 0) return { fatal: 'No "Price", "Stock", "Online", "Discount" or "Offer" column was found in the first row.' };
+  const imgOf = (r) => { const v = C.im >= 0 ? String(r[C.im] ?? "").trim() : ""; return v === "" ? "" : /^\/img\/[\w.-]+$/.test(v) || /^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\/[\w./-]+$/i.test(v) ? v : null; };
   const yes = (v) => /^(yes|y|1|true|on|نعم)$/i.test(String(v ?? "").trim());
   // Discount and offer for a row: {dc, ob, of, xo} with 0 for none, or a message when a cell can't be read.
   const promo = (r) => {
@@ -150,17 +151,18 @@ function bkPlan(rows) {
       if (C.p >= 0) { const raw = String(r[C.p] ?? "").trim().replace(/^\$/, "").replace(/,(?=\d{3}\b)/g, "").replace(",", "."); const v = raw === "" ? 0 : Number(raw); if (!isFinite(v) || v < 0) bad = `Price "${r[C.p]}" is not a number`; else p = Math.round(v * 100) / 100; }
       if (C.s >= 0 && !bad) { const raw = String(r[C.s] ?? "").trim(), v = raw === "" ? null : Number(raw); if (v !== null && !isFinite(v)) bad = `Stock "${r[C.s]}" is not a number`; else s = v === null ? null : Math.max(0, Math.floor(v)); }
       const pm = promo(r); if (!bad && typeof pm === "string") bad = pm;
+      const im = imgOf(r); if (!bad && im === null) bad = `Image "${r[C.im]}" should be a path like /img/photo.jpg`;
       if (bad) return errors.push({ line, id, msg: bad });
       const kn = C.k >= 0 ? String(r[C.k] ?? "").trim() : "";
       const on = C.on >= 0 ? String(r[C.on] ?? "").trim().toLowerCase() : "";
-      adds.push({ id: nid, n: n.slice(0, 140), a: C.a >= 0 ? String(r[C.a] ?? "").trim().slice(0, 140) : "", kn, k: catIx(kn), p, s, off: /^(no|n|0|false|off|لا)$/.test(on) ? 1 : 0, pm });
+      adds.push({ id: nid, n: n.slice(0, 140), a: C.a >= 0 ? String(r[C.a] ?? "").trim().slice(0, 140) : "", kn, k: catIx(kn), p, s, off: /^(no|n|0|false|off|لا)$/.test(on) ? 1 : 0, pm, im: im || "" });
       return;
     }
     seen.add(id);
     const ch = {}; let bad = "";
     if (C.p >= 0) {
       const raw = String(r[C.p] ?? "").trim().replace(/^\$/, "").replace(/,(?=\d{3}\b)/g, "").replace(",", ".");
-      const v = raw === "" ? 0 : Number(raw);
+      const v = raw === "" ? it.p || 0 : Number(raw); // an empty price cell leaves the price as it is
       if (!isFinite(v) || v < 0) bad = `Price "${r[C.p]}" is not a number`; else { const p = Math.round(v * 100) / 100; if (p !== (it.p || 0)) ch.p = [it.p || 0, p]; }
     }
     if (C.s >= 0 && !bad) {
@@ -184,6 +186,7 @@ function bkPlan(rows) {
         if (JSON.stringify(pm) !== JSON.stringify(was)) ch.pm = [was, pm];
       }
     }
+    if (!bad && C.im >= 0) { const im = imgOf(r); if (im === null) bad = `Image "${r[C.im]}" should be a path like /img/photo.jpg`; else if (im && !it.im) ch.im = ["", im]; }
     if (bad) return errors.push({ line, id, msg: bad });
     if (Object.keys(ch).length) changes.push({ id, n: it.n, ch }); else same++;
   });
@@ -196,7 +199,7 @@ function bkPreview(plan, fname) {
   const m = document.createElement("div"); m.className = "mod"; m.id = "mod";
   const cnt = (k) => plan.changes.filter((c) => c.ch[k]).length;
   m.innerHTML = `<div class="box pfbox" role="dialog" aria-label="Check the changes"><div class="row"><h2 style="font-size:19px">Check the changes</h2><span class="mu sm">${esc(fname)}</span><span class="sp"></span><button class="btn" data-x>Cancel</button></div>`
-    + (plan.fatal ? `<div class="notice bad">${esc(plan.fatal)}</div>` : `<div class="sum" style="margin:0"><button disabled><b>${plan.changes.length}</b><span>Products to update</span></button><button disabled><b>${cnt("p")}</b><span>Price changes</span></button><button disabled><b>${cnt("s")}</b><span>Stock changes</span></button><button disabled><b>${cnt("off")}</b><span>Online changes</span></button><button disabled><b>${cnt("pm")}</b><span>Discount or offer changes</span></button><button disabled><b>${plan.adds.length}</b><span>New products</span></button><button disabled class="${plan.errors.length ? "x" : ""}"><b>${plan.errors.length}</b><span>Rows with problems</span></button></div>
+    + (plan.fatal ? `<div class="notice bad">${esc(plan.fatal)}</div>` : `<div class="sum" style="margin:0"><button disabled><b>${plan.changes.length}</b><span>Products to update</span></button><button disabled><b>${cnt("p")}</b><span>Price changes</span></button><button disabled><b>${cnt("s")}</b><span>Stock changes</span></button><button disabled><b>${cnt("off")}</b><span>Online changes</span></button><button disabled><b>${cnt("pm")}</b><span>Discount or offer changes</span></button><button disabled><b>${cnt("im")}</b><span>Photos added</span></button><button disabled><b>${plan.adds.length}</b><span>New products</span></button><button disabled class="${plan.errors.length ? "x" : ""}"><b>${plan.errors.length}</b><span>Rows with problems</span></button></div>
 ${plan.errors.length ? `<div class="notice bad"><b>These rows will be skipped:</b><ul style="margin:6px 0 0;padding-inline-start:18px">${plan.errors.slice(0, 50).map((e) => `<li>Row ${e.line}${e.id ? ` (${esc(e.id)})` : ""}: ${esc(e.msg)}</li>`).join("")}${plan.errors.length > 50 ? `<li>…and ${plan.errors.length - 50} more</li>` : ""}</ul></div>` : ""}
 ${plan.changes.length ? `<div class="tw" style="max-height:46vh;overflow:auto"><table><thead><tr><th>Ref</th><th>Name</th><th>Price ($)</th><th>Stock</th><th>Online</th><th>Discount / offer</th></tr></thead><tbody>${plan.changes.map((c) => `<tr><td class="ref">${esc(c.id)}</td><td>${esc(c.n)}</td>${["p", "s", "off", "pm"].map((k) => `<td>${c.ch[k] ? (k === "pm" ? `${esc(pmTxt(c.ch.pm[0]))} → <b>${esc(pmTxt(c.ch.pm[1]))}</b>` : k === "off" ? `${c.ch[k][0] ? "no" : "yes"} → <b>${c.ch[k][1] ? "no" : "yes"}</b>` : `${sv(c.ch[k][0])} → <b>${sv(c.ch[k][1])}</b>`) : '<span class="mu">–</span>'}</td>`).join("")}</tr>`).join("")}</tbody></table></div>` : `${plan.adds.length ? "" : `<p class="mu" style="margin:0">Nothing to change: the file matches what is in the command center.</p>`}`}
 ${plan.adds.length ? `<h3 style="font-size:16px;margin:4px 0 0">New products to add</h3>${plan.adds.some((a) => a.k < 0) ? `<p class="mu sm" style="margin:0">Products with no category, or a category the app doesn't have yet, go into the category named in the file (it is created) or into "Other products".</p>` : ""}<div class="tw" style="max-height:34vh;overflow:auto"><table><thead><tr><th>Ref</th><th>Name</th><th>Category</th><th>Price ($)</th><th>Stock</th><th>Discount / offer</th></tr></thead><tbody>${plan.adds.map((a) => `<tr><td class="ref">${esc(a.id)}</td><td>${esc(a.n)}${a.a ? `<div class="mu sm" dir="rtl">${esc(a.a)}</div>` : ""}</td><td>${a.k >= 0 ? esc(W.cats[a.k].n) : `<b>${esc(a.kn || "Other products")}</b> <span class="mu sm">(new)</span>`}</td><td>${sv(a.p)}</td><td>${sv(a.s)}</td><td>${esc(pmTxt(a.pm))}</td></tr>`).join("")}</tbody></table></div>` : ""}
@@ -207,11 +210,11 @@ ${plan.adds.length ? `<h3 style="font-size:16px;margin:4px 0 0">New products to 
   const ap = $("bkapply");
   if (ap) ap.onclick = () => {
     const byId = new Map(W.items.map((i) => [i.id, i]));
-    plan.changes.forEach((c) => { const i = byId.get(c.id); if (c.ch.p) i.p = c.ch.p[1]; if (c.ch.s) i.s = c.ch.s[1]; if (c.ch.off) i.off = c.ch.off[1]; if (c.ch.pm) setPm(i, c.ch.pm[1]); });
+    plan.changes.forEach((c) => { const i = byId.get(c.id); if (c.ch.p) i.p = c.ch.p[1]; if (c.ch.s) i.s = c.ch.s[1]; if (c.ch.off) i.off = c.ch.off[1]; if (c.ch.pm) setPm(i, c.ch.pm[1]); if (c.ch.im) i.im = c.ch.im[1]; });
     plan.adds.forEach((a) => {
       let k = a.k;
       if (k < 0) { const nm = (a.kn || "Other products").slice(0, 60); k = W.cats.findIndex((c) => c.n.toLowerCase() === nm.toLowerCase()); if (k < 0) { W.cats.push({ n: nm, a: "", c: "#008dd5", e: "📦" }); k = W.cats.length - 1; } }
-      const it = { id: a.id, k, n: a.n, a: a.a, d: "", ad: "", p: a.p, s: a.s, off: a.off, im: "" }; setPm(it, a.pm); W.items.push(it);
+      const it = { id: a.id, k, n: a.n, a: a.a, d: "", ad: "", p: a.p, s: a.s, off: a.off, im: a.im || "" }; setPm(it, a.pm); W.items.push(it);
     });
     m.remove(); render();
     toast(`${plan.changes.length} products updated${plan.adds.length ? ` and ${plan.adds.length} added` : ""} here. Press "Publish changes" to put them live.`);
