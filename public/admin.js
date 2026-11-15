@@ -162,7 +162,7 @@ function rows() {
   $("rows").innerHTML = it.slice(F.pg * PER, F.pg * PER + PER).map((i) => {
     const c = W.cats[i.k] || { n: "?", e: "📦" }, chg = snap(live(i.id) || {}) !== snap(i);
     const pill = noStock(i) ? '<span class="pill out" title="No stock number entered, so customers see Out of stock.">Not set</span>' : isOut(i) ? '<span class="pill out">Out</span>' : isLow(i) ? '<span class="pill low">Low</span>' : "";
-    return `<tr data-id="${esc(i.id)}" class="${i.off ? "off" : ""}${chg ? " chg" : ""}"><td class="th">${i.im ? `<img src="${esc(i.im)}" alt="" loading="lazy">` : `<span>${c.e}</span>`}</td><td><span class="ref">${esc(i.id)}</span></td><td>${esc(i.n)}<small>${esc(i.a || "")}</small></td><td>${esc(c.n)}</td><td><input class="n" type="number" min="0" step="0.01" inputmode="decimal" value="${i.p || 0}" data-f="p" aria-label="Price of ${esc(i.id)}"></td><td><div class="row"><input class="n" type="number" min="0" step="1" inputmode="numeric" placeholder="—" value="${i.s == null ? "" : i.s}" data-f="s" aria-label="Stock of ${esc(i.id)}">${pill}</div></td><td><label class="sw"><input type="checkbox" data-f="on" ${i.off ? "" : "checked"} aria-label="${esc(i.id)} online"><i></i></label></td><td><button class="btn" data-edit="${esc(i.id)}">Edit</button></td></tr>`;
+    return `<tr data-id="${esc(i.id)}" class="${i.off ? "off" : ""}${chg ? " chg" : ""}"><td class="th">${i.im ? `<img src="${esc(i.im)}" alt="" loading="lazy">` : `<span>${c.e}</span>`}</td><td><span class="ref">${esc(i.id)}</span></td><td>${esc(i.n)}<small>${esc(i.a || "")}</small></td><td>${esc(c.n)}</td><td><input class="n" type="number" min="0" step="0.01" inputmode="decimal" value="${i.p || 0}" data-f="p" aria-label="Price of ${esc(i.id)}">${i.dc || i.ob ? `<small class="mu" title="Client discount and free goods offer">${[i.dc ? "−" + i.dc + "%" : "", i.ob ? i.ob + "+" + i.of + " free" : ""].filter(Boolean).join(i.xo ? " or " : " · ")}</small>` : ""}</td><td><div class="row"><input class="n" type="number" min="0" step="1" inputmode="numeric" placeholder="—" value="${i.s == null ? "" : i.s}" data-f="s" aria-label="Stock of ${esc(i.id)}">${pill}</div></td><td><label class="sw"><input type="checkbox" data-f="on" ${i.off ? "" : "checked"} aria-label="${esc(i.id)} online"><i></i></label></td><td><button class="btn" data-edit="${esc(i.id)}">Edit</button></td></tr>`;
   }).join("") || `<tr><td colspan="8" class="mu">No products match.</td></tr>`;
   $("pg").innerHTML = pages > 1 ? `<button class="btn" id="pp" ${F.pg < 1 ? "disabled" : ""}>‹ Previous</button><span class="mu sm">Page ${F.pg + 1} of ${pages} · ${it.length} products</span><button class="btn" id="pn" ${F.pg >= pages - 1 ? "disabled" : ""}>Next ›</button>` : `<span class="mu sm">${it.length} products · Empty stock shows as out of stock</span>`;
   if ($("pp")) { $("pp").onclick = () => { F.pg--; rows(); }; $("pn").onclick = () => { F.pg++; rows(); }; }
@@ -189,7 +189,11 @@ function edit(id) {
 <label class="f">Description (Arabic)<textarea id="e_ad" dir="rtl" rows="2" maxlength="400">${esc(E.ad)}</textarea></label>
 <label class="f">Price ($)<input id="e_p" type="number" min="0" step="0.01" inputmode="decimal" value="${E.p || 0}"></label>
 <label class="f">Stock (empty shows as out of stock)<input id="e_s" type="number" min="0" step="1" inputmode="numeric" value="${E.s == null ? "" : E.s}"></label>
+<label class="f">Client discount (%)<input id="e_dc" type="number" min="0" max="90" step="0.5" inputmode="decimal" placeholder="none" value="${E.dc || ""}"></label>
+<label class="f">Free goods offer: buy … get … free<span class="row"><input id="e_ob" type="number" min="0" max="999" step="1" inputmode="numeric" placeholder="buy" value="${E.ob || ""}" style="width:90px"> + <input id="e_of" type="number" min="0" max="999" step="1" inputmode="numeric" placeholder="free" value="${E.of || ""}" style="width:90px"></span></label>
 </div>
+<label class="row"><span class="sw"><input id="e_xo" type="checkbox" ${E.xo ? "checked" : ""}><i></i></span> Client chooses the discount <b>or</b> the free goods (they can't be combined)</label>
+<p class="mu sm" style="margin:0">Price is the public price. Clients pay the price less their discount. With a free goods offer, every "buy" units ordered get the "free" units added.</p>
 <label class="row"><span class="sw"><input id="e_on" type="checkbox" ${E.off ? "" : "checked"}><i></i></span> Online (visible in the catalogue)</label>
 <p class="err" id="emsg" role="alert"></p>
 <div class="row"><button class="btn pri" id="eok">${ENEW ? "Add product" : "Save"}</button><button class="btn" id="ecx">Cancel</button><span class="sp"></span>${ENEW ? "" : '<button class="btn dng" id="edel">Delete product</button>'}</div>
@@ -215,8 +219,15 @@ function edit(id) {
     if (ENEW && gi(ref)) return msg("That ref is already used. Choose another.");
     if (!n) return msg("Enter the English name.");
     if (!isFinite(p) || p < 0) return msg("Enter a price of 0 or more.");
+    const dc = parseFloat($("e_dc").value || "0"), ob = parseInt($("e_ob").value || "0", 10), of = parseInt($("e_of").value || "0", 10);
+    if (!isFinite(dc) || dc < 0 || dc >= 100) return msg("The discount is a percentage from 0 to 90.");
+    if ((ob > 0) !== (of > 0)) return msg('Fill in both numbers of the offer, for example buy 5 + 2 free, or leave both empty.');
+    delete E.dc; delete E.ob; delete E.of; delete E.xo;
+    if (dc > 0) E.dc = Math.round(dc * 100) / 100;
+    if (ob > 0 && of > 0) { E.ob = ob; E.of = of; }
+    if (E.dc && E.ob && $("e_xo").checked) E.xo = 1;
     Object.assign(E, { id: ref, k: +$("e_k").value, n, a: $("e_a").value.trim(), d: $("e_d").value.trim(), ad: $("e_ad").value.trim(), p: Math.round(p * 100) / 100, s: sv === "" ? null : Math.max(0, Math.floor(+sv) || 0), off: $("e_on").checked ? 0 : 1 });
-    if (ENEW) W.items.unshift(E); else Object.assign(gi(E.id), E);
+    if (ENEW) W.items.unshift(E); else { const g = gi(E.id); ["dc", "ob", "of", "xo"].forEach((f) => delete g[f]); Object.assign(g, E); }
     close(); render(); toast(ENEW ? "Product added. Publish to make it live." : "Saved. Publish to make it live.");
   };
   if ($("edel")) $("edel").onclick = () => {
@@ -503,7 +514,7 @@ function renderOrders() {
     $("olist").innerHTML = it.length ? it.map((o) => {
       const tel = (o.phone || "").replace(/[^\d+]/g, "").replace(/^\+/, "").replace(/^00/, "").replace(/^0/, "961");
       return `<article class="ord ${o.status}"><div><h3>Order #${esc(o.id)} <span class="st-${o.status} sm">● ${ST[o.status]}</span></h3>
-<ul>${o.items.map((i) => `<li>${i.q} × ${esc(i.n)} <span class="mu sm">${esc(i.id)}${i.p ? " · " + usd(i.p) : ""}</span></li>`).join("")}</ul></div>
+<ul>${o.items.map((i) => `<li>${i.q} × ${esc(i.n)}${i.fq ? ` <b>+ ${i.fq} free</b>` : ""} <span class="mu sm">${esc(i.id)}${i.p ? " · " + usd(i.p) : ""}${i.dc ? ` (${i.dc}% off ${usd(i.rp)})` : ""}${i.o ? ` · chose ${i.o === "f" ? "free goods" : "discount"}` : ""}</span></li>`).join("")}</ul></div>
 <div style="text-align:end"><b style="font-size:17px">${o.total != null ? usd(o.total) : '<span class="mu sm">No total (prices missing)</span>'}</b><br>
 <select data-o="${esc(o.id)}" aria-label="Status of order ${esc(o.id)}" style="margin-top:6px">${Object.keys(ST).map((s) => `<option value="${s}" ${s === o.status ? "selected" : ""}>${ST[s]}</option>`).join("")}</select><br><label class="eta">Driver<select data-drv="${esc(o.id)}" aria-label="Driver for order ${esc(o.id)}"><option value="">Not assigned</option>${DRV.filter((d) => d.on || d.id === o.drv).map((d) => `<option value="${esc(d.id)}" ${d.id === o.drv ? "selected" : ""}>${esc(d.n)}</option>`).join("")}</select></label><label class="eta">Delivery expected<input type="datetime-local" data-eta="${esc(o.id)}" value="${localDT(o.eta)}" aria-label="Expected delivery of order ${esc(o.id)}"></label><button class="btn" data-pf="${esc(o.id)}" style="margin-top:6px">📄 Proforma</button></div>
 <div class="meta"><span>🕒 ${when(o.at)}</span><span>👤 ${esc(o.name || "No name given")}</span>${o.phone ? `<span>📞 <a href="https://wa.me/${esc(tel)}" target="_blank" rel="noopener">${esc(o.phone)}</a></span>` : ""}${o.addr ? `<span>📍 ${esc(o.addr)}</span>` : ""}<span>${o.lang === "ar" ? "Arabic" : "English"}</span>${o.note ? (/#([A-Z0-9]{6})$/.test(o.note) ? `<span>🧾 <a href="#" data-cmpgo="${esc(o.note.slice(-6))}">${esc(o.note)}</a></span>` : `<span>📝 ${esc(o.note)}</span>`) : ""}</div></article>`;

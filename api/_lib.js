@@ -146,6 +146,10 @@ export async function saveCatalog(data) {
 /* ---------- Validation of a catalogue sent by the admin ---------- */
 const str = (v, max) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 const okImg = (s) => s === "" || /^\/img\/[\w.-]+$/.test(s) || /^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\/[\w./-]+$/i.test(s);
+// Client price: the public (original) price less the client's discount. Free goods: "buy ob, get of free".
+export const netPrice = (i) => { const p = Number(i && i.p) || 0, dc = Number(i && i.dc) || 0; return Math.round(p * (1 - dc / 100) * 100) / 100; };
+export const freeQty = (i, q) => (i && i.ob > 0 && i.of > 0 ? Math.floor(q / i.ob) * i.of : 0);
+
 export function cleanCatalog(input) {
   if (!input || typeof input !== "object" || !Array.isArray(input.cats) || !Array.isArray(input.items)) throw new Error("shape");
   if (input.cats.length > 60 || input.items.length > 3000) throw new Error("too_many");
@@ -165,12 +169,17 @@ export function cleanCatalog(input) {
     const s = i.s === null || i.s === "" || i.s === undefined ? null : Math.max(0, Math.floor(Number(i.s)) || 0);
     const im = str(i.im, 300);
     if (!okImg(im)) throw new Error("bad_image:" + id);
+    const dc = Number(i.dc), ob = Math.floor(Number(i.ob)), of = Math.floor(Number(i.of));
+    const offer = ob > 0 && ob <= 999 && of > 0 && of <= 999;
     return {
       id, k,
       n: str(i.n, 140) || id, a: str(i.a, 140),
       d: str(i.d, 400), ad: str(i.ad, 400),
       p: isFinite(p) && p >= 0 ? Math.round(p * 100) / 100 : 0,
       s, off: i.off ? 1 : 0, im,
+      ...(isFinite(dc) && dc > 0 && dc < 100 ? { dc: Math.round(dc * 100) / 100 } : {}),
+      ...(offer ? { ob, of } : {}),
+      ...(offer && dc > 0 && dc < 100 && i.xo ? { xo: 1 } : {}),
     };
   });
   const banners = (Array.isArray(input.banners) ? input.banners : DEFAULT_BANNERS).slice(0, 12).map((b, n) => {

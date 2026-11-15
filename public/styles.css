@@ -252,3 +252,10 @@ html[dir=rtl] .tl li.done:before,html[dir=rtl] .tl li.cur:before{background:line
 .cmp-bar .cbtn{flex:1 1 220px;max-width:340px}
 @media(prefers-color-scheme:dark){:root:not([data-theme="light"]) .cr-sim{background:#3a2a0c;color:#f0c46a}:root:not([data-theme="light"]) .cmp-err{color:#ff8a80}}
 @media(max-width:460px){.cr{flex-wrap:wrap}.cr-p{flex-direction:row;align-items:center;gap:8px;width:100%;justify-content:flex-end}}
+
+/* Client price under the public price, and free-goods offers */
+.pp{display:flex;flex-direction:column;gap:1px;min-width:0}.pp small{font-size:11.5px;color:var(--mu,#6b7785)}.pp>span{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.pp em{font-style:normal;font-size:11.5px;font-weight:700;background:#e6f6ec;color:#1b6b3a;border-radius:99px;padding:1px 7px}
+.sb.ofr{background:#e8f1ff;color:#0b4aa8}.it .ofl{display:block;color:#0b4aa8;font-weight:600}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]) .sb.ofr{background:#13284a;color:#9cc3ff}:root:not([data-theme="light"]) .pp em{background:#123323;color:#8fe0ae}:root:not([data-theme="light"]) .it .ofl{color:#9cc3ff}}
+.opt{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}.opt button{font:inherit;font-size:12px;font-weight:700;border:1.5px solid var(--bd);background:var(--card);color:var(--tx);border-radius:99px;padding:3px 10px;cursor:pointer}.opt button.on{border-color:var(--pr);background:var(--soft);color:var(--prd)}

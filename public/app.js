@@ -1,5 +1,5 @@
 /* Oxinab catalogue app: catalogue, order basket (sent on WhatsApp), install and offers. */
-const TR={"Language":"اللغة","Updated":"آخر تحديث","Products":"المنتجات","How to order":"طريقة الطلب","Contact":"اتصل بنا","Order":"طلبي",
+const TR={"Public price":"سعر المبيع للعموم","Choose your offer":"اختر العرض","Your price":"سعرك","free":"مجاناً","Language":"اللغة","Updated":"آخر تحديث","Products":"المنتجات","How to order":"طريقة الطلب","Contact":"اتصل بنا","Order":"طلبي",
 "Preview: sample products. The real Oxinab catalogue is coming soon.":"نسخة تجريبية: منتجات للعرض فقط. كتالوج أوكسيناب الكامل قريباً.",
 "Emergency, medical and home health supplies.":"مستلزمات الطوارئ والمستلزمات الطبية والصحة المنزلية.",
 "EMS and first aid, burn care, oxygen, diagnostics and home health. Find an item by name or reference, build your order, and send it on WhatsApp.":"الإسعاف والإسعافات الأولية، علاج الحروق، الأكسجين، أدوات التشخيص والصحة المنزلية. ابحث عن المنتج بالاسم أو بالرقم المرجعي، كوّن طلبك وأرسله عبر واتساب.",
@@ -40,8 +40,9 @@ const nm=p=>LANG==='ar'?bi(p.a||p.n):p.n,ds=p=>LANG==='ar'?bi(p.ad||p.d||''):(p.
 const $=id=>document.getElementById(id),esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
 const money=v=>CUR+v.toFixed(2),qty=()=>Object.values(cart).reduce((a,b)=>a+b,0);
 const isD=k=>k.slice(0,2)==='D:';
-const tot=()=>Object.keys(cart).reduce((s,k)=>s+(isD(k)?DL[k.slice(2)].pr:byId[k].pr)*cart[k],0);
-const save=()=>{try{localStorage.setItem('oxc',JSON.stringify(cart))}catch(e){}};
+const tot=()=>Object.keys(cart).reduce((s,k)=>s+(isD(k)?DL[k.slice(2)].pr:lineP(byId[k],k).pr)*cart[k],0);
+let opt={};try{opt=JSON.parse(localStorage.getItem('oxo')||'{}')||{}}catch(e){}
+const save=()=>{try{localStorage.setItem('oxc',JSON.stringify(cart));localStorage.setItem('oxo',JSON.stringify(opt))}catch(e){}};
 const out=p=>p.s===0;
 let cart={},cat=-1,q='';
 const newOID=()=>{const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',r=crypto.getRandomValues(new Uint8Array(6));return Array.from(r,x=>c[x%c.length]).join('')};
@@ -69,7 +70,7 @@ function all(){if(!D)return;promo();dealsDraw();chips();draw();drawCart();trkDra
 
 function load(d){
  D=d;CATS=d.cats;SHOW_PRICES=!!d.set.price;WA=d.set.wa||WA;LOW=d.set.low||0;
- P=d.items.filter(i=>!i.off&&CATS[i.k]).map(i=>({id:i.id,n:i.n,a:i.a,d:i.d,ad:i.ad,pr:i.p||0,s:i.s==null?0:i.s,ci:i.k,im:i.im}));
+ P=d.items.filter(i=>!i.off&&CATS[i.k]).map(i=>({id:i.id,n:i.n,a:i.a,d:i.d,ad:i.ad,pr:Math.round((i.p||0)*(1-(i.dc||0)/100)*100)/100,rp:i.p||0,dc:i.dc||0,ob:i.ob||0,of:i.of||0,xo:i.xo&&i.dc&&i.ob?1:0,s:i.s==null?0:i.s,ci:i.k,im:i.im}));
  byId={};P.forEach(p=>byId[p.id]=p);DL={};(d.deals||[]).forEach(x=>{if(dealOn(x))DL[x.id]=x});cnt=CATS.map((c,i)=>P.filter(p=>p.ci===i).length);
  const c0=cart;cart={};
  try{const s=Object.keys(c0).length?c0:JSON.parse(localStorage.getItem('oxc')||'{}');for(const k in s){if((isD(k)?DL[k.slice(2)]&&dealOk(DL[k.slice(2)]):byId[k]&&!out(byId[k]))&&s[k]>0)cart[k]=s[k]}}catch(e){}
@@ -78,8 +79,18 @@ function load(d){
 }
 function stepper(id){return `<div class="st"><button onclick="ch('${id}',-1)" aria-label="${t('Remove one')}">−</button><span>${cart[id]}</span><button onclick="ch('${id}',1)" aria-label="${t('Add one')}">+</button></div>`}
 function stock(p){if(p.s==null)return '';if(p.s===0)return `<span class="sb out">${t('Out of stock')}</span>`;if(LOW&&p.s<=LOW)return `<span class="sb low">${LANG==='ar'?t('left')+' '+p.s:'Only '+p.s+' left'}</span>`;return ''}
+/* Client price and free goods: rp is the public price, pr the client's price after the discount; "buy ob, get of free". */
+const freeQ=(p,n)=>p&&p.ob>0&&p.of>0?Math.floor(n/p.ob)*p.of:0;
+/* When the discount and the free goods can't be combined (xo), the client picks one per product: 'd' discount (default) or 'f' free goods at the public price. */
+const pick=(p,k)=>p.xo?(opt[k]==='f'?'f':'d'):'';
+const lineP=(p,k)=>{const o=pick(p,k),n=cart[k]||0;return o==='f'?{pr:p.rp,fq:freeQ(p,n),o}:o==='d'?{pr:p.pr,fq:0,o}:{pr:p.pr,fq:freeQ(p,n),o:''}};
+function setOpt(k,o){opt[k]=o;save();drawCart()}
+const optTxt=(p,o,l)=>o==='f'?(l==='ar'?`عرض: اشترِ ${p.ob} واحصل على ${p.of} مجاناً`:`offer: buy ${p.ob}, get ${p.of} free`):(l==='ar'?`حسم ${p.dc}%`:`${p.dc}% discount`);
+const ofTxt=p=>(p.xo?(LANG==='ar'?'أو ':'Or: '):'')+(LANG==='ar'?`اشترِ ⁦${p.ob}⁩ واحصل على ⁦${p.of}⁩ مجاناً`:`Buy ${p.ob}, get ${p.of} free`);
+function priceHtml(p){if(!(SHOW_PRICES&&p.pr))return `<span class="mu sm">${t('Ask for a quote')}</span>`;if(!(p.dc>0))return `<b dir="ltr">${money(p.pr)}</b>`;
+return `<div class="pp"><small>${t('Public price')} <span dir="ltr">${money(p.rp)}</span></small><span><b dir="ltr" title="${t('Your price')}">${money(p.pr)}</b><em dir="ltr">−${p.dc}%</em></span></div>`}
 function card(p){const c=CATS[p.ci];
-return `<article class="pc" style="--c:${c.c}"><div class="th${p.im?' ph':''}">${p.im?`<img src="${esc(p.im)}" alt="${esc(nm(p))}" loading="lazy" decoding="async">`:`<span aria-hidden="true">${c.e}</span>`}</div><div class="pb"><span class="rf">${p.id}</span>${stock(p)}${inDeal(p.id)?`<a class="sb dl-t" href="#deals">${t(inDeal(p.id).k==='f'?'⚡ Flash deal':'🎁 In a bundle')}</a>`:''}<div style="flex:1"><h3>${esc(nm(p))}</h3>${ds(p)?`<p class="ds">${esc(ds(p))}</p>`:''}</div><div class="ft">${SHOW_PRICES&&p.pr?`<b dir="ltr">${money(p.pr)}</b>`:`<span class="mu sm">${t('Ask for a quote')}</span>`}${cart[p.id]?stepper(p.id):`<button class="ad" onclick="ch('${p.id}',1)" ${out(p)?'disabled':''}>${t('Add')}</button>`}</div></div></article>`}
+return `<article class="pc" style="--c:${c.c}"><div class="th${p.im?' ph':''}">${p.im?`<img src="${esc(p.im)}" alt="${esc(nm(p))}" loading="lazy" decoding="async">`:`<span aria-hidden="true">${c.e}</span>`}</div><div class="pb"><span class="rf">${p.id}</span>${stock(p)}${p.ob?`<span class="sb ofr">🎁 ${ofTxt(p)}</span>`:''}${inDeal(p.id)?`<a class="sb dl-t" href="#deals">${t(inDeal(p.id).k==='f'?'⚡ Flash deal':'🎁 In a bundle')}</a>`:''}<div style="flex:1"><h3>${esc(nm(p))}</h3>${ds(p)?`<p class="ds">${esc(ds(p))}</p>`:''}</div><div class="ft">${priceHtml(p)}${cart[p.id]?stepper(p.id):`<button class="ad" onclick="ch('${p.id}',1)" ${out(p)?'disabled':''}>${t('Add')}</button>`}</div></div></article>`}
 function draw(){
  const f=P.filter(p=>(cat<0||p.ci===cat)&&(p.id+' '+p.n+' '+(p.a||'')+' '+(p.d||'')).toLowerCase().includes(q));
  $('g').innerHTML=f.length?f.map(card).join(''):'<p class="mu">'+t('No match. Message us on WhatsApp and we will check availability for you.')+'</p>';
@@ -88,12 +99,14 @@ function draw(){
 function drawCart(){
  const ks=Object.keys(cart),pr=ks.every(k=>isD(k)||SHOW_PRICES&&byId[k].pr>0);
  $('cn').textContent=qty();
- $('ci').innerHTML=ks.length?ks.map(k=>{if(isD(k)){const d=DL[k.slice(2)];return `<div class="it" style="--c:#e8590c"><div><b>${d.k==='f'?'⚡':'🎁'} ${esc(dt(d))}</b><span class="mu sm" dir="ltr">${esc(d.items.map(i=>i.q+'× '+i.id).join(', '))} · ${money(d.pr)}</span></div>${stepper(k)}</div>`}const p=byId[k];return `<div class="it" style="--c:${CATS[p.ci].c}"><div><b>${esc(nm(p))}</b><span class="mu sm" dir="ltr">${p.id}${SHOW_PRICES&&p.pr?' · '+money(p.pr):''}</span></div>${stepper(k)}</div>`}).join(''):'<p class="mu">'+t('Your order is empty. Add products from the catalogue.')+'</p>';
+ $('ci').innerHTML=ks.length?ks.map(k=>{if(isD(k)){const d=DL[k.slice(2)];return `<div class="it" style="--c:#e8590c"><div><b>${d.k==='f'?'⚡':'🎁'} ${esc(dt(d))}</b><span class="mu sm" dir="ltr">${esc(d.items.map(i=>i.q+'× '+i.id).join(', '))} · ${money(d.pr)}</span></div>${stepper(k)}</div>`}const p=byId[k];return `<div class="it" style="--c:${CATS[p.ci].c}"><div><b>${esc(nm(p))}</b>${(()=>{const L=lineP(p,k),fr=L.fq?(LANG==='ar'?'+⁦'+L.fq+'⁩ '+t('free'):'+'+L.fq+' free'):'';return `<span class="mu sm" dir="ltr">${p.id}${SHOW_PRICES&&L.pr?' · '+money(L.pr):''}</span>`
++(p.xo?`<span class="opt" role="radiogroup" aria-label="${t('Choose your offer')}"><button role="radio" aria-checked="${L.o==='d'}" class="${L.o==='d'?'on':''}" onclick="setOpt('${k}','d')">${LANG==='ar'?'حسم ⁦'+p.dc+'%⁩':p.dc+'% off'}</button><button role="radio" aria-checked="${L.o==='f'}" class="${L.o==='f'?'on':''}" onclick="setOpt('${k}','f')">🎁 ${LANG==='ar'?'⁦'+p.ob+'+'+p.of+'⁩ مجاناً':p.ob+'+'+p.of+' free'}</button></span>${L.o==='f'?`<span class="sm ofl">${fr||ofTxt(p).replace(/^(Or: |أو )/,'')}</span>`:''}`
+:p.ob?`<span class="sm ofl">🎁 ${fr||ofTxt(p)}</span>`:'')})()}</div>${stepper(k)}</div>`}).join(''):'<p class="mu">'+t('Your order is empty. Add products from the catalogue.')+'</p>';
  $('tt').innerHTML=pr?`<span>${t('Estimated total')}</span><span dir="ltr">${money(tot())}</span>`:`<span>${t('Items')}</span><span>${qty()}</span>`;
  const a=$('wa');a.classList.toggle('off',!ks.length);
  const U=who(),ul=LANG==='ar'?[U.name&&'الاسم: '+U.name,U.phone&&'الهاتف: '+U.phone,U.addr&&'العنوان: '+U.addr]:[U.name&&'Name: '+U.name,U.phone&&'Phone: '+U.phone,U.addr&&'Address: '+U.addr];
  const cn=typeof cmpNote==='function'?cmpNote():'',head=(LANG==='ar'?'طلب رقم ':'Order #')+OID+'\n',tail=(cn?'\n'+cn:'')+(ul.filter(Boolean).length?'\n'+ul.filter(Boolean).join('\n'):'');
- const msg=head+(LANG==='ar'?'مرحباً أوكسيناب، أود طلب:\n'+ks.map(k=>isD(k)?'• '+dmsg(DL[k.slice(2)],'ar')+' × '+cart[k]:'• '+k+' - '+(byId[k].a||byId[k].n)+' × '+cart[k]).join('\n')+(pr?'\nالمجموع التقريبي: '+money(tot()):'')+'\nالدفع: عند الاستلام':'Hello Oxinab, I would like to order:\n'+ks.map(k=>isD(k)?'• '+dmsg(DL[k.slice(2)],'en')+' x '+cart[k]:'• '+k+' - '+byId[k].n+' x '+cart[k]).join('\n')+(pr?'\nEstimated total: '+money(tot()):'')+'\nPayment: Cash on Delivery')+tail;
+ const msg=head+(LANG==='ar'?'مرحباً أوكسيناب، أود طلب:\n'+ks.map(k=>isD(k)?'• '+dmsg(DL[k.slice(2)],'ar')+' × '+cart[k]:'• '+k+' - '+(byId[k].a||byId[k].n)+' × '+cart[k]+(lineP(byId[k],k).fq?' + '+lineP(byId[k],k).fq+' مجاناً':'')+(lineP(byId[k],k).o?' ('+optTxt(byId[k],lineP(byId[k],k).o,'ar')+')':'')).join('\n')+(pr?'\nالمجموع التقريبي: '+money(tot()):'')+'\nالدفع: عند الاستلام':'Hello Oxinab, I would like to order:\n'+ks.map(k=>isD(k)?'• '+dmsg(DL[k.slice(2)],'en')+' x '+cart[k]:'• '+k+' - '+byId[k].n+' x '+cart[k]+(lineP(byId[k],k).fq?' + '+lineP(byId[k],k).fq+' free':'')+(lineP(byId[k],k).o?' ('+optTxt(byId[k],lineP(byId[k],k).o,'en')+')':'')).join('\n')+(pr?'\nEstimated total: '+money(tot()):'')+'\nPayment: Cash on Delivery')+tail;
  a.href=ks.length?'https://wa.me/'+WA+'?text='+encodeURIComponent(msg):'#';
 }
 /* ===== Brands and offers slider (slides are managed in the command center) ===== */
@@ -156,7 +169,7 @@ let sending=false;
 $('wa').addEventListener('click',async e=>{
  const ks=Object.keys(cart),href=$('wa').href;if(!ks.length){e.preventDefault();return}
  e.preventDefault();if(sending)return;sending=true;
- const id=OID,note=typeof cmpNote==='function'?cmpNote():'',body=JSON.stringify({id,lang:LANG,...who(),note,items:ks.map(k=>({id:k,q:cart[k]}))});if(note)cmpSetNote('');
+ const id=OID,note=typeof cmpNote==='function'?cmpNote():'',body=JSON.stringify({id,lang:LANG,...who(),note,items:ks.map(k=>({id:k,q:cart[k],...(!isD(k)&&byId[k]&&byId[k].xo?{o:pick(byId[k],k)}:{})}))});if(note)cmpSetNote('');
  obxSet([...obx().filter(x=>x.id!==id),{id,t:Date.now(),body}]);
  let ok=false;
  try{const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),3000);
@@ -283,7 +296,7 @@ function tcard(o){
  +step(d)
  +(d.eta&&!['delivered','cancelled'].includes(d.status)?`<div class="tc-eta"><span aria-hidden="true" style="font-size:22px">🚚</span><div><span class="mu sm">${t('Expected delivery')}</span><b>${fdt(d.eta)}</b></div></div>`:'')
  +(d.status==='out'&&d.driver?`<div class="tc-drv"><div class="tc-dh"><span class="tc-av" aria-hidden="true">🛵</span><div><b>${esc(d.driver.n)}</b> <span class="mu sm">${t('is on the way')}</span>${d.loc?`<small class="mu" data-ago="${d.loc.t}"></small>`:''}</div>${d.driver.tel?`<a class="tc-call" href="tel:+${esc(intlTel(d.driver.tel))}" aria-label="${t('Call driver')}">📞</a>`:''}</div>${d.loc?`<div class="tmap-slot" data-map="${esc(d.id)}"></div>`:`<p class="mu sm" style="margin:8px 0 0">${t("Waiting for the driver's location…")}</p>`}</div>`:'')
-+`<details><summary>${t('Items and total')} (${d.items.reduce((a,i)=>a+i.q,0)})</summary><ul>${d.items.map(i=>{const p=byId[i.id];return `<li class="ln"><span>${esc(p?nm(p):i.n)}</span><span dir="ltr">× ${i.q}${SHOW_PRICES&&i.p?' · '+money(i.p*i.q):''}</span></li>`}).join('')}</ul>${SHOW_PRICES&&priced?`<div class="tot"><span>${t('Total')}</span><span dir="ltr">${money(d.total)}</span></div>`:''}</details>`
++`<details><summary>${t('Items and total')} (${d.items.reduce((a,i)=>a+i.q,0)})</summary><ul>${d.items.map(i=>{const p=byId[i.id];return `<li class="ln"><span>${esc(p?nm(p):i.n)}</span><span dir="ltr">× ${i.q}${i.fq?' + '+i.fq+' '+t('free'):''}${SHOW_PRICES&&i.p?' · '+money(i.p*i.q):''}</span></li>`}).join('')}</ul>${SHOW_PRICES&&priced?`<div class="tot"><span>${t('Total')}</span><span dir="ltr">${money(d.total)}</span></div>`:''}</details>`
  +`<div class="tc-a">${d.pf?`<a class="pf" href="${esc(d.pf.url)}" target="_blank" rel="noopener" download>⬇ ${t('Download proforma')} <span dir="ltr">${esc(d.pf.no)}</span></a>`:''}<a class="wa" href="${wa}" target="_blank" rel="noopener">💬 ${t('Ask about this order')}</a></div></article>`;
 }
 const intlTel=p=>{let d=String(p||'').replace(/[^\d+]/g,'').replace(/^\+/,'').replace(/^00/,'');if(!d.startsWith('961'))d='961'+d.replace(/^0/,'');return d};

@@ -22,10 +22,11 @@ async function pfOpen(fromOrder) {
   try { cfg = (await pfLoad()).cfg; } catch (e) { if (e.status !== 401) toast("Could not load the proforma settings. Try again."); return; }
   const o = fromOrder ? ORD.find((x) => x.id === fromOrder) : null;
   const cat = (id) => W.items.find((i) => i.id === id);
+  const net = (it) => (it ? Math.round((it.p || 0) * (1 - (it.dc || 0) / 100) * 100) / 100 : 0); // the client price
   const D = {
     order: o ? o.id : "",
     client: { name: o?.name || "", co: "", phone: o?.phone || "", addr: o?.addr || "" },
-    lines: o ? o.items.map((i) => ({ id: i.id, n: i.n, q: i.q, p: i.p || cat(i.id)?.p || 0 })) : [],
+    lines: o ? o.items.flatMap((i) => [{ id: i.id, n: i.n + (i.dc && i.p ? ` (${i.dc}% discount)` : ""), q: i.q, p: i.p || net(cat(i.id)) }, ...(i.fq ? [{ id: i.id, n: `${i.n} (free goods, offer ${i.ob}+${i.of})`, q: i.fq, p: 0 }] : [])]) : [],
     disc: 0, ship: 0, vat: cfg.vat || 0, valid: cfg.valid || 7, note: "",
   };
   const m = document.createElement("div"); m.className = "mod"; m.id = "mod";
@@ -76,7 +77,7 @@ async function pfOpen(fromOrder) {
     const v = $("pfadd").value, id = v.split(" · ")[0].trim(), it = W.items.find((i) => i.id === id);
     if (!it) return;
     const have = D.lines.find((l) => l.id === it.id);
-    if (have) have.q++; else D.lines.push({ id: it.id, n: it.n, q: 1, p: it.p || 0 });
+    if (have) have.q++; else D.lines.push({ id: it.id, n: it.n, q: 1, p: Math.round((it.p || 0) * (1 - (it.dc || 0) / 100) * 100) / 100 });
     $("pfadd").value = ""; lines();
   };
   $("pfadd").addEventListener("change", add);

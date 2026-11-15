@@ -2,7 +2,7 @@
    Download all products as Excel (.xlsx) or CSV, edit Price, Stock and Online, upload it back,
    check the preview, apply, then "Publish changes" as usual. No outside library: the .xlsx is a small zip
    of XML written and read here. Uses helpers from admin.js ($, esc, W, toast, state, render). */
-const BK_HEAD = ["Ref", "Name", "Name (Arabic)", "Category", "Price ($)", "Stock", "Online (yes/no)"];
+const BK_HEAD = ["Ref", "Name", "Name (Arabic)", "Category", "Price ($)", "Stock", "Online (yes/no)", "Discount (%)", "Offer buy", "Offer free", "Choose one (yes/no)"];
 
 /* ---------- zip (stored on write; stored or deflated on read) ---------- */
 const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
@@ -50,19 +50,19 @@ async function unzip(buf) {
 const xe = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const colL = (i) => { let s = ""; i++; while (i) { const m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); } return s; };
 function bkRows() {
-  return W.items.map((i) => [i.id, i.n, i.a || "", (W.cats[i.k] || {}).n || "", i.p || 0, i.s == null ? "" : i.s, i.off ? "no" : "yes"]);
+  return W.items.map((i) => [i.id, i.n, i.a || "", (W.cats[i.k] || {}).n || "", i.p || 0, i.s == null ? "" : i.s, i.off ? "no" : "yes", i.dc || "", i.ob || "", i.of || "", i.xo ? "yes" : ""]);
 }
 function bkXlsx() {
   const rows = [BK_HEAD, ...bkRows()];
-  const sheet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols><col min="1" max="1" width="16" customWidth="1"/><col min="2" max="3" width="46" customWidth="1"/><col min="4" max="4" width="26" customWidth="1"/><col min="5" max="7" width="15" customWidth="1"/></cols><sheetData>`
+  const sheet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols><col min="1" max="1" width="16" customWidth="1"/><col min="2" max="3" width="46" customWidth="1"/><col min="4" max="4" width="26" customWidth="1"/><col min="5" max="11" width="15" customWidth="1"/></cols><sheetData>`
     + rows.map((r, ri) => `<row r="${ri + 1}">` + r.map((v, ci) => {
       const a = colL(ci) + (ri + 1), st = ri === 0 ? ' s="1"' : ci >= 4 ? ' s="2"' : ci < 4 ? ' s="3"' : "";
       return typeof v === "number" ? `<c r="${a}"${st}><v>${v}</v></c>` : v === "" ? `<c r="${a}"${st}/>` : `<c r="${a}" t="inlineStr"${st}><is><t xml:space="preserve">${xe(v)}</t></is></c>`;
-    }).join("") + `</row>`).join("") + `</sheetData><autoFilter ref="A1:G${rows.length}"/></worksheet>`;
+    }).join("") + `</row>`).join("") + `</sheetData><autoFilter ref="A1:K${rows.length}"/></worksheet>`;
   return zip([
     ["[Content_Types].xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`],
     ["_rels/.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`],
-    ["xl/workbook.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Products" sheetId="1" r:id="rId1"/></sheets><definedNames><definedName name="_xlnm._FilterDatabase" localSheetId="0" hidden="1">Products!$A$1:$G$${rows.length}</definedName></definedNames></workbook>`],
+    ["xl/workbook.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Products" sheetId="1" r:id="rId1"/></sheets><definedNames><definedName name="_xlnm._FilterDatabase" localSheetId="0" hidden="1">Products!$A$1:$K$${rows.length}</definedName></definedNames></workbook>`],
     ["xl/_rels/workbook.xml.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`],
     ["xl/styles.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font></fonts><fills count="4"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF001765"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF3F6FA"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="4"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="0" fillId="3" borderId="0" xfId="0" applyFill="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`],
     ["xl/worksheets/sheet1.xml", sheet],
@@ -118,9 +118,19 @@ async function parseXlsx(buf) {
 function bkPlan(rows) {
   const head = (rows[0] || []).map((h) => String(h).trim().toLowerCase());
   const col = (re) => head.findIndex((h) => re.test(h));
-  const C = { id: col(/^(ref|reference|id|item code|code)\b/), n: col(/^(name|description|item description)$|^name \(english\)/), a: col(/^name \(arabic\)|^arabic/), k: col(/^category/), p: col(/^price/), s: col(/^stock|^qty|^quantity|^balance/), on: col(/^online|^shown|^active/) };
+  const C = { id: col(/^(ref|reference|id|item code|code)\b/), n: col(/^(name|description|item description)$|^name \(english\)/), a: col(/^name \(arabic\)|^arabic/), k: col(/^category/), p: col(/^price/), s: col(/^stock|^qty|^quantity|^balance/), on: col(/^online|^shown|^active/), dc: col(/^discount|^disc\b/), ob: col(/^offer buy|^buy\b/), of: col(/^offer free|^free\b/), xo: col(/^choose one|^either/) };
   if (C.id < 0) return { fatal: 'The first row needs a "Ref" column. Use the file from "Download Excel" as the starting point.' };
-  if (C.p < 0 && C.s < 0 && C.on < 0) return { fatal: 'No "Price", "Stock" or "Online" column was found in the first row.' };
+  if (C.p < 0 && C.s < 0 && C.on < 0 && C.dc < 0 && C.ob < 0) return { fatal: 'No "Price", "Stock", "Online", "Discount" or "Offer" column was found in the first row.' };
+  const yes = (v) => /^(yes|y|1|true|on|نعم)$/i.test(String(v ?? "").trim());
+  // Discount and offer for a row: {dc, ob, of, xo} with 0 for none, or a message when a cell can't be read.
+  const promo = (r) => {
+    const num = (ci) => { const raw = ci >= 0 ? String(r[ci] ?? "").trim().replace(/%$/, "").replace(",", ".") : ""; return raw === "" ? 0 : Number(raw); };
+    let dc = num(C.dc); const ob = num(C.ob), of = num(C.of);
+    if (dc > 0 && dc < 1 && C.dc >= 0 && !/%/.test(String(r[C.dc]))) dc = dc * 100; // Excel percentage cells arrive as 0.25
+    if (!isFinite(dc) || dc < 0 || dc >= 100) return `Discount "${r[C.dc]}" should be a percentage like 25`;
+    if (!isFinite(ob) || !isFinite(of) || ob < 0 || of < 0 || Math.floor(ob) !== ob || Math.floor(of) !== of || (ob > 0) !== (of > 0)) return 'The offer needs two whole numbers, "Offer buy" and "Offer free" (for 5+2: 5 and 2), or both empty';
+    return { dc: Math.round(dc * 100) / 100, ob, of, xo: dc > 0 && ob > 0 && yes(C.xo >= 0 ? r[C.xo] : "") ? 1 : 0 };
+  };
   const byId = new Map(W.items.map((i) => [i.id, i])), seen = new Set(), changes = [], adds = [], errors = []; let same = 0;
   const catIx = (name) => { const t = String(name ?? "").trim().toLowerCase(); return t ? W.cats.findIndex((c) => c.n.toLowerCase() === t || (c.a || "").trim().toLowerCase() === t) : -1; };
   rows.slice(1).forEach((r, k) => {
@@ -139,10 +149,11 @@ function bkPlan(rows) {
       let p = 0, s = null, bad = "";
       if (C.p >= 0) { const raw = String(r[C.p] ?? "").trim().replace(/^\$/, "").replace(/,(?=\d{3}\b)/g, "").replace(",", "."); const v = raw === "" ? 0 : Number(raw); if (!isFinite(v) || v < 0) bad = `Price "${r[C.p]}" is not a number`; else p = Math.round(v * 100) / 100; }
       if (C.s >= 0 && !bad) { const raw = String(r[C.s] ?? "").trim(), v = raw === "" ? null : Number(raw); if (v !== null && !isFinite(v)) bad = `Stock "${r[C.s]}" is not a number`; else s = v === null ? null : Math.max(0, Math.floor(v)); }
+      const pm = promo(r); if (!bad && typeof pm === "string") bad = pm;
       if (bad) return errors.push({ line, id, msg: bad });
       const kn = C.k >= 0 ? String(r[C.k] ?? "").trim() : "";
       const on = C.on >= 0 ? String(r[C.on] ?? "").trim().toLowerCase() : "";
-      adds.push({ id: nid, n: n.slice(0, 140), a: C.a >= 0 ? String(r[C.a] ?? "").trim().slice(0, 140) : "", kn, k: catIx(kn), p, s, off: /^(no|n|0|false|off|لا)$/.test(on) ? 1 : 0 });
+      adds.push({ id: nid, n: n.slice(0, 140), a: C.a >= 0 ? String(r[C.a] ?? "").trim().slice(0, 140) : "", kn, k: catIx(kn), p, s, off: /^(no|n|0|false|off|لا)$/.test(on) ? 1 : 0, pm });
       return;
     }
     seen.add(id);
@@ -162,20 +173,33 @@ function bkPlan(rows) {
       const v = /^(yes|y|1|true|on|نعم)$/.test(raw) ? 0 : /^(no|n|0|false|off|لا)$/.test(raw) ? 1 : raw === "" ? it.off : null;
       if (v === null) bad = `Online "${r[C.on]}" should be yes or no`; else if (v !== (it.off ? 1 : 0)) ch.off = [it.off ? 1 : 0, v];
     }
+    if (!bad && (C.dc >= 0 || C.ob >= 0)) {
+      const pm = promo(r);
+      if (typeof pm === "string") bad = pm;
+      else {
+        const was = { dc: it.dc || 0, ob: it.ob || 0, of: it.of || 0, xo: it.xo ? 1 : 0 };
+        if (C.dc < 0) pm.dc = was.dc;
+        if (C.ob < 0) { pm.ob = was.ob; pm.of = was.of; }
+        pm.xo = pm.dc && pm.ob ? (C.xo >= 0 ? pm.xo : was.xo) : 0;
+        if (JSON.stringify(pm) !== JSON.stringify(was)) ch.pm = [was, pm];
+      }
+    }
     if (bad) return errors.push({ line, id, msg: bad });
     if (Object.keys(ch).length) changes.push({ id, n: it.n, ch }); else same++;
   });
   return { changes, adds, errors, same, missing: W.items.filter((i) => !seen.has(i.id)).length, cols: C };
 }
+const pmTxt = (m) => (!m || (!m.dc && !m.ob) ? "none" : [m.dc ? m.dc + "% off" : "", m.ob ? `buy ${m.ob} get ${m.of} free` : ""].filter(Boolean).join(m.xo ? " OR " : " + "));
+const setPm = (i, m) => { for (const f of ["dc", "ob", "of", "xo"]) i[f] = undefined; if (m.dc) i.dc = m.dc; if (m.ob) { i.ob = m.ob; i.of = m.of; } if (m.xo) i.xo = 1; for (const f of ["dc", "ob", "of", "xo"]) if (i[f] === undefined) Reflect.deleteProperty(i, f); };
 const sv = (v) => (v == null ? '<span class="mu">empty</span>' : esc(v));
 function bkPreview(plan, fname) {
   const m = document.createElement("div"); m.className = "mod"; m.id = "mod";
   const cnt = (k) => plan.changes.filter((c) => c.ch[k]).length;
   m.innerHTML = `<div class="box pfbox" role="dialog" aria-label="Check the changes"><div class="row"><h2 style="font-size:19px">Check the changes</h2><span class="mu sm">${esc(fname)}</span><span class="sp"></span><button class="btn" data-x>Cancel</button></div>`
-    + (plan.fatal ? `<div class="notice bad">${esc(plan.fatal)}</div>` : `<div class="sum" style="margin:0"><button disabled><b>${plan.changes.length}</b><span>Products to update</span></button><button disabled><b>${cnt("p")}</b><span>Price changes</span></button><button disabled><b>${cnt("s")}</b><span>Stock changes</span></button><button disabled><b>${cnt("off")}</b><span>Online changes</span></button><button disabled><b>${plan.adds.length}</b><span>New products</span></button><button disabled class="${plan.errors.length ? "x" : ""}"><b>${plan.errors.length}</b><span>Rows with problems</span></button></div>
+    + (plan.fatal ? `<div class="notice bad">${esc(plan.fatal)}</div>` : `<div class="sum" style="margin:0"><button disabled><b>${plan.changes.length}</b><span>Products to update</span></button><button disabled><b>${cnt("p")}</b><span>Price changes</span></button><button disabled><b>${cnt("s")}</b><span>Stock changes</span></button><button disabled><b>${cnt("off")}</b><span>Online changes</span></button><button disabled><b>${cnt("pm")}</b><span>Discount or offer changes</span></button><button disabled><b>${plan.adds.length}</b><span>New products</span></button><button disabled class="${plan.errors.length ? "x" : ""}"><b>${plan.errors.length}</b><span>Rows with problems</span></button></div>
 ${plan.errors.length ? `<div class="notice bad"><b>These rows will be skipped:</b><ul style="margin:6px 0 0;padding-inline-start:18px">${plan.errors.slice(0, 50).map((e) => `<li>Row ${e.line}${e.id ? ` (${esc(e.id)})` : ""}: ${esc(e.msg)}</li>`).join("")}${plan.errors.length > 50 ? `<li>…and ${plan.errors.length - 50} more</li>` : ""}</ul></div>` : ""}
-${plan.changes.length ? `<div class="tw" style="max-height:46vh;overflow:auto"><table><thead><tr><th>Ref</th><th>Name</th><th>Price ($)</th><th>Stock</th><th>Online</th></tr></thead><tbody>${plan.changes.map((c) => `<tr><td class="ref">${esc(c.id)}</td><td>${esc(c.n)}</td>${["p", "s", "off"].map((k) => `<td>${c.ch[k] ? (k === "off" ? `${c.ch[k][0] ? "no" : "yes"} → <b>${c.ch[k][1] ? "no" : "yes"}</b>` : `${sv(c.ch[k][0])} → <b>${sv(c.ch[k][1])}</b>`) : '<span class="mu">–</span>'}</td>`).join("")}</tr>`).join("")}</tbody></table></div>` : `${plan.adds.length ? "" : `<p class="mu" style="margin:0">Nothing to change: the file matches what is in the command center.</p>`}`}
-${plan.adds.length ? `<h3 style="font-size:16px;margin:4px 0 0">New products to add</h3>${plan.adds.some((a) => a.k < 0) ? `<p class="mu sm" style="margin:0">Products with no category, or a category the app doesn't have yet, go into the category named in the file (it is created) or into "Other products".</p>` : ""}<div class="tw" style="max-height:34vh;overflow:auto"><table><thead><tr><th>Ref</th><th>Name</th><th>Category</th><th>Price ($)</th><th>Stock</th></tr></thead><tbody>${plan.adds.map((a) => `<tr><td class="ref">${esc(a.id)}</td><td>${esc(a.n)}${a.a ? `<div class="mu sm" dir="rtl">${esc(a.a)}</div>` : ""}</td><td>${a.k >= 0 ? esc(W.cats[a.k].n) : `<b>${esc(a.kn || "Other products")}</b> <span class="mu sm">(new)</span>`}</td><td>${sv(a.p)}</td><td>${sv(a.s)}</td></tr>`).join("")}</tbody></table></div>` : ""}
+${plan.changes.length ? `<div class="tw" style="max-height:46vh;overflow:auto"><table><thead><tr><th>Ref</th><th>Name</th><th>Price ($)</th><th>Stock</th><th>Online</th><th>Discount / offer</th></tr></thead><tbody>${plan.changes.map((c) => `<tr><td class="ref">${esc(c.id)}</td><td>${esc(c.n)}</td>${["p", "s", "off", "pm"].map((k) => `<td>${c.ch[k] ? (k === "pm" ? `${esc(pmTxt(c.ch.pm[0]))} → <b>${esc(pmTxt(c.ch.pm[1]))}</b>` : k === "off" ? `${c.ch[k][0] ? "no" : "yes"} → <b>${c.ch[k][1] ? "no" : "yes"}</b>` : `${sv(c.ch[k][0])} → <b>${sv(c.ch[k][1])}</b>`) : '<span class="mu">–</span>'}</td>`).join("")}</tr>`).join("")}</tbody></table></div>` : `${plan.adds.length ? "" : `<p class="mu" style="margin:0">Nothing to change: the file matches what is in the command center.</p>`}`}
+${plan.adds.length ? `<h3 style="font-size:16px;margin:4px 0 0">New products to add</h3>${plan.adds.some((a) => a.k < 0) ? `<p class="mu sm" style="margin:0">Products with no category, or a category the app doesn't have yet, go into the category named in the file (it is created) or into "Other products".</p>` : ""}<div class="tw" style="max-height:34vh;overflow:auto"><table><thead><tr><th>Ref</th><th>Name</th><th>Category</th><th>Price ($)</th><th>Stock</th><th>Discount / offer</th></tr></thead><tbody>${plan.adds.map((a) => `<tr><td class="ref">${esc(a.id)}</td><td>${esc(a.n)}${a.a ? `<div class="mu sm" dir="rtl">${esc(a.a)}</div>` : ""}</td><td>${a.k >= 0 ? esc(W.cats[a.k].n) : `<b>${esc(a.kn || "Other products")}</b> <span class="mu sm">(new)</span>`}</td><td>${sv(a.p)}</td><td>${sv(a.s)}</td><td>${esc(pmTxt(a.pm))}</td></tr>`).join("")}</tbody></table></div>` : ""}
 <p class="mu sm" style="margin:0">${plan.same} ${plan.same === 1 ? "row is" : "rows are"} unchanged.${plan.missing ? ` ${plan.missing} products are not in the file and stay as they are.` : ""}${plan.cols.on < 0 ? ' The file has no "Online" column, so online status is not changed.' : ""}</p>
 <div class="row"><span class="sp"></span><button class="btn pri" id="bkapply" ${plan.changes.length + plan.adds.length ? "" : "disabled"}>Apply ${plan.changes.length + plan.adds.length} ${plan.changes.length + plan.adds.length === 1 ? "change" : "changes"}</button></div>`) + `</div>`;
   document.body.appendChild(m);
@@ -183,11 +207,11 @@ ${plan.adds.length ? `<h3 style="font-size:16px;margin:4px 0 0">New products to 
   const ap = $("bkapply");
   if (ap) ap.onclick = () => {
     const byId = new Map(W.items.map((i) => [i.id, i]));
-    plan.changes.forEach((c) => { const i = byId.get(c.id); if (c.ch.p) i.p = c.ch.p[1]; if (c.ch.s) i.s = c.ch.s[1]; if (c.ch.off) i.off = c.ch.off[1]; });
+    plan.changes.forEach((c) => { const i = byId.get(c.id); if (c.ch.p) i.p = c.ch.p[1]; if (c.ch.s) i.s = c.ch.s[1]; if (c.ch.off) i.off = c.ch.off[1]; if (c.ch.pm) setPm(i, c.ch.pm[1]); });
     plan.adds.forEach((a) => {
       let k = a.k;
       if (k < 0) { const nm = (a.kn || "Other products").slice(0, 60); k = W.cats.findIndex((c) => c.n.toLowerCase() === nm.toLowerCase()); if (k < 0) { W.cats.push({ n: nm, a: "", c: "#008dd5", e: "📦" }); k = W.cats.length - 1; } }
-      W.items.push({ id: a.id, k, n: a.n, a: a.a, d: "", ad: "", p: a.p, s: a.s, off: a.off, im: "" });
+      const it = { id: a.id, k, n: a.n, a: a.a, d: "", ad: "", p: a.p, s: a.s, off: a.off, im: "" }; setPm(it, a.pm); W.items.push(it);
     });
     m.remove(); render();
     toast(`${plan.changes.length} products updated${plan.adds.length ? ` and ${plan.adds.length} added` : ""} here. Press "Publish changes" to put them live.`);

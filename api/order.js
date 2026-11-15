@@ -1,5 +1,5 @@
 // A customer tapped "Send order on WhatsApp": keep a copy of the order for the command center.
-import { json, blobReady, loadCatalogFast as loadCatalog, sameOrigin, dealLive } from "./_lib.js";
+import { json, blobReady, loadCatalogFast as loadCatalog, sameOrigin, dealLive, netPrice, freeQty } from "./_lib.js";
 import { list, put } from "@vercel/blob";
 import { compareUpload } from "./_compare_upload.js";
 import { kvOn, kvGet } from "./_kv.js";
@@ -36,7 +36,12 @@ export async function POST(req) {
       return { id: key, n: `${d.k === "f" ? "⚡ Flash deal" : "🎁 Bundle"}: ${d.t} — ${parts.join(", ")}`, q, p: d.pr, deal: 1 };
     }
     const p = byId.get(key);
-    return p && q > 0 && q <= 999 ? { id: p.id, n: p.n, q, p: p.p || 0 } : null;
+    if (!(p && q > 0 && q <= 999)) return null;
+    // p is the client's price (public price less the client discount); fq the free units the offer gives.
+    // When the two can't be combined (xo), the client chose one: "d" the discount (default) or "f" the free goods at the public price.
+    const xo = p.xo && p.dc && p.ob, o = xo ? (x.o === "f" ? "f" : "d") : "";
+    const fq = o === "d" ? 0 : freeQty(p, q), price = o === "f" ? p.p || 0 : netPrice(p);
+    return { id: p.id, n: p.n, q, p: price, ...(p.dc && o !== "f" ? { rp: p.p || 0, dc: p.dc } : {}), ...(fq ? { fq, ob: p.ob, of: p.of } : {}), ...(o ? { o } : {}) };
   }).filter(Boolean);
   if (!items.length) { console.warn("order.no_items", id); return json({ error: "no_items" }, 400); }
   const priced = items.every((i) => i.p > 0);
