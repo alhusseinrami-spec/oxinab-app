@@ -85,7 +85,7 @@ export function phoneKey(p) {
   return d.length >= 6 ? createHmac("sha256", tkey()).update("ph:" + d).digest("hex").slice(0, 16) : "";
 }
 export const trackFromOrder = (o) => ({
-  id: o.id, at: o.at, items: o.items.map((i) => ({ id: i.id, n: i.n, q: i.q, p: i.p })), total: o.total,
+  id: o.id, at: o.at, items: o.items.map((i) => ({ id: i.id, n: i.n, q: i.q, p: i.p, ...(i.fq ? { fq: i.fq } : {}) })), total: o.total,
   status: "new", steps: { new: o.at }, eta: "", pf: null, ph: phoneKey(o.phone), up: new Date().toISOString(),
 });
 export async function readTrack(id) {

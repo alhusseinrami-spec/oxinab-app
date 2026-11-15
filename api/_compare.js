@@ -235,7 +235,7 @@ export function compare(read, items) {
   return (read.lines || []).slice(0, 400).map((l) => {
     const q = l.qty > 0 ? Math.min(99999, Math.round(l.qty * 1000) / 1000) : 1, cur = String(l.currency || read.currency || "USD").toUpperCase().slice(0, 6);
     const p = l.unit_price > 0 ? r2(l.unit_price) : 0, pu = toUSD(p, cur), it = l.match && l.fit !== "none" ? byId.get(String(l.match)) : null;
-    const op = it && it.p > 0 ? it.p : 0;
+    const op = it && it.p > 0 ? Math.round(it.p * (1 - (Number(it.dc) || 0) / 100) * 100) / 100 : 0; // the client price
     const st = !it ? "none" : !op ? "noprice" : !p ? "unpriced" : pu == null ? "nocur" : op < pu - 0.004 ? "cheaper" : "more";
     return { n: String(l.desc || "").slice(0, 200), code: String(l.code || "").slice(0, 40), q, p, cur, pu: pu == null ? null : r2(pu), m: it ? it.id : "", fit: it ? (l.fit === "same" ? "same" : "similar") : "none", op, st };
   });
