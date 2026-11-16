@@ -45,8 +45,11 @@ const $=id=>document.getElementById(id),esc=s=>String(s).replace(/&/g,'&amp;').r
 const money=v=>CUR+v.toFixed(2),qty=()=>Object.values(cart).reduce((a,b)=>a+b,0);
 const isD=k=>k.slice(0,2)==='D:';
 const tot=()=>Object.keys(cart).reduce((s,k)=>s+(isD(k)?DL[k.slice(2)].pr:lineP(byId[k],k).pr)*cart[k],0);
-let opt={};try{opt=JSON.parse(localStorage.getItem('oxo')||'{}')||{}}catch(e){}
-const save=()=>{try{localStorage.setItem('oxc',JSON.stringify(cart));localStorage.setItem('oxo',JSON.stringify(opt))}catch(e){}};
+/* Offer choices are kept under their own key. They used to share 'oxo' with the list of sent orders,
+   which wiped the orders list and left "My orders" blank; an old choices object found there is moved over. */
+let opt={};try{const o=JSON.parse(localStorage.getItem('oxof')||'null');const old=JSON.parse(localStorage.getItem('oxo')||'null');
+ if(old&&typeof old==='object'&&!Array.isArray(old)){localStorage.removeItem('oxo');opt=o||old}else opt=o||{};if(!opt||typeof opt!=='object'||Array.isArray(opt))opt={}}catch(e){}
+const save=()=>{try{localStorage.setItem('oxc',JSON.stringify(cart));localStorage.setItem('oxof',JSON.stringify(opt))}catch(e){}};
 const out=p=>p.s===0;
 let cart={},cat=-1,q='';
 const newOID=()=>{const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',r=crypto.getRandomValues(new Uint8Array(6));return Array.from(r,x=>c[x%c.length]).join('')};
@@ -295,7 +298,7 @@ ntfState();
 const OXO='oxo',STEPS=['new','confirmed','preparing','out','delivered'];
 const SNAME={new:'Received',confirmed:'Confirmed',preparing:'Preparing',out:'Out for delivery',delivered:'Delivered',cancelled:'Cancelled'};
 const SICON={new:'✓',confirmed:'✓',preparing:'📦',out:'🚚',delivered:'🏠'};
-const mine=()=>{try{return JSON.parse(localStorage.getItem(OXO)||'[]')}catch(e){return []}};
+const mine=()=>{try{const a=JSON.parse(localStorage.getItem(OXO)||'[]');return Array.isArray(a)?a.filter(o=>o&&o.id):[]}catch(e){return []}};
 const mineSet=a=>{try{localStorage.setItem(OXO,JSON.stringify(a.slice(0,30)))}catch(e){}};
 function remember(id,u,d){if(!u)return;const a=mine().filter(x=>x.id!==id);a.unshift({id,u,at:Date.now(),d:d||null,seen:d?d.status:'new'});a.sort((x,y)=>y.at-x.at);mineSet(a)}
 const active=o=>!o.d||!['delivered','cancelled'].includes(o.d.status);
