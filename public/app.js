@@ -16,7 +16,11 @@ const TR={"Sell at":"سعر البيع للمريض","You pay":"تدفع","Your 
 "Pay cash on delivery. We confirm availability, price and delivery on WhatsApp.":"الدفع نقداً عند الاستلام. نؤكد التوفر والسعر والتوصيل عبر واتساب.",
 "All":"الكل","Add":"أضف","Ask for a quote":"اطلب السعر","product":"منتج","products":"منتجات",
 "No match. Message us on WhatsApp and we will check availability for you.":"لا توجد نتائج. راسلنا على واتساب وسنتحقق من التوفر لك.",
-"Your order is empty. Add products from the catalogue.":"طلبك فارغ. أضف منتجات من الكتالوج.","Estimated total":"المجموع التقريبي","Items":"عدد القطع",
+"Your order is empty. Add products from the catalogue.":"طلبك فارغ. أضف منتجات من الكتالوج.",
+"Your order is empty":"طلبك فارغ","Add products from the catalogue and send your order on WhatsApp in one tap.":"أضف منتجات من الكتالوج وأرسل طلبك عبر واتساب بنقرة واحدة.","Browse products":"تصفّح المنتجات","See this week's deals":"عروض هذا الأسبوع",
+"No products found":"لم نجد منتجات","Try another name or reference number. We can also check availability for you on WhatsApp.":"جرّب اسماً آخر أو رقماً مرجعياً. يمكننا أيضاً التحقّق من التوفّر لك عبر واتساب.","Ask on WhatsApp":"اسأل عبر واتساب","Clear search":"مسح البحث",
+"Could not load the catalogue":"تعذّر تحميل الكتالوج","Check your internet connection and try again.":"تحقّق من اتصالك بالإنترنت وحاول مجدداً.","Try again":"حاول مجدداً",
+"Order received":"تم استلام طلبك","Order saved on your phone":"الطلب محفوظ على هاتفك","Opening WhatsApp to confirm your order…":"جارٍ فتح واتساب لتأكيد طلبك…","It will be sent when you are back online. Opening WhatsApp…":"سيُرسل عند عودة الاتصال. جارٍ فتح واتساب…","Track my order":"تتبّع طلبي","Continue shopping":"متابعة التسوّق","Added to your order":"أُضيف إلى طلبك","Estimated total":"المجموع التقريبي","Items":"عدد القطع",
 "Remove one":"إزالة واحدة","Add one":"إضافة واحدة","Open your order":"افتح طلبك","Close":"إغلاق","Search products":"ابحث عن منتج",
 "Oxinab Catalogue":"كتالوج أوكسيناب","Shop now":"تسوّق الآن","Brands and offers":"العلامات التجارية والعروض","Previous slide":"الشريحة السابقة","Next slide":"الشريحة التالية","Slide":"الشريحة","of":"من"};
 Object.assign(TR,{"Out of stock":"غير متوفر","left":"متبقٍ فقط","Only":"","Install the app":"ثبّت التطبيق","Get offers on your phone":"احصل على العروض على هاتفك","Offers are on":"العروض مفعّلة",
@@ -49,6 +53,13 @@ const newOID=()=>{const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',r=crypto.getRandomV
 let OID=newOID();
 const who=()=>({name:($('u_n').value||'').trim(),phone:($('u_p').value||'').trim(),addr:($('u_a').value||'').trim()});
 function toast(m){const o=document.createElement('div');o.className='toast';o.textContent=m;document.body.appendChild(o);setTimeout(()=>o.remove(),3500)}
+/* Photos fade in the first time they load; a re-drawn card shows an already loaded photo straight away. */
+const IMOK=new Set();function imgOk(i){IMOK.add(i.getAttribute('src'));i.classList.add('ld')}
+const imgTag=(src,alt,extra)=>`<img src="${esc(src)}" alt="${esc(alt)}" ${extra||''} class="${IMOK.has(src)?'ld':''}" onload="imgOk(this)" onerror="imgOk(this)">`;
+/* A friendly empty state: icon, title, one line and up to two buttons. */
+const emptyBox=(ic,title,line,btns)=>`<div class="empty"><span class="empty-ic" aria-hidden="true">${ic}</span><h3>${t(title)}</h3><p class="mu">${t(line)}</p>${btns?`<div class="empty-b">${btns}</div>`:''}</div>`;
+function bump(){const b=$('cb');if(!b||RM0())return;b.classList.remove('bump');void b.offsetWidth;b.classList.add('bump')}
+const RM0=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 function stat(){
  const h=document.documentElement;h.lang=LANG;h.dir=LANG==='ar'?'rtl':'ltr';
@@ -92,18 +103,19 @@ return `<div class="pp"><small>${t('Sell at')} <span dir="ltr">${money(p.rp)}</s
 /* The pharmacist's profit on a cart line: they resell every unit, paid and free, at the public price. */
 const lineProfit=(p,k,o)=>{const n=cart[k]||0,L=o?{pr:o==='f'?p.rp:p.pr,fq:o==='f'?freeQ(p,n):0}:lineP(p,k);return Math.round(((n+L.fq)*p.rp-n*L.pr)*100)/100};
 function card(p){const c=CATS[p.ci];
-return `<article class="pc" style="--c:${c.c}"><div class="th${p.im?' ph':''}">${p.im?`<img src="${esc(p.im)}" alt="${esc(nm(p))}" loading="lazy" decoding="async">`:`<span aria-hidden="true">${c.e}</span>`}</div><div class="pb"><span class="rf">${p.id}</span>${stock(p)}${p.ob?`<span class="sb ofr">🎁 ${ofTxt(p)}</span>`:''}${inDeal(p.id)?`<a class="sb dl-t" href="#deals">${t(inDeal(p.id).k==='f'?'⚡ Flash deal':'🎁 In a bundle')}</a>`:''}<div style="flex:1"><h3>${esc(nm(p))}</h3>${ds(p)?`<p class="ds">${esc(ds(p))}</p>`:''}</div><div class="ft">${priceHtml(p)}${cart[p.id]?stepper(p.id):`<button class="ad" onclick="ch('${p.id}',1)" ${out(p)?'disabled':''}>${t('Add')}</button>`}</div></div></article>`}
+return `<article class="pc" style="--c:${c.c}"><div class="th${p.im?' ph':''}">${p.im?imgTag(p.im,nm(p),'loading="lazy" decoding="async"'):`<span aria-hidden="true">${c.e}</span>`}</div><div class="pb"><span class="rf">${p.id}</span>${stock(p)}${p.ob?`<span class="sb ofr">🎁 ${ofTxt(p)}</span>`:''}${inDeal(p.id)?`<a class="sb dl-t" href="#deals">${t(inDeal(p.id).k==='f'?'⚡ Flash deal':'🎁 In a bundle')}</a>`:''}<div style="flex:1"><h3>${esc(nm(p))}</h3>${ds(p)?`<p class="ds">${esc(ds(p))}</p>`:''}</div><div class="ft">${priceHtml(p)}${cart[p.id]?stepper(p.id):`<button class="ad" onclick="ch('${p.id}',1)" ${out(p)?'disabled':''}>${t('Add')}</button>`}</div></div></article>`}
 function draw(){
  const f=P.filter(p=>(cat<0||p.ci===cat)&&(p.id+' '+p.n+' '+(p.a||'')+' '+(p.d||'')).toLowerCase().includes(q));
- $('g').innerHTML=f.length?f.map(card).join(''):'<p class="mu">'+t('No match. Message us on WhatsApp and we will check availability for you.')+'</p>';
- $('cnt').textContent=f.length+' '+t(f.length===1?'product':'products');
+ $('g').innerHTML=f.length?f.map(card).join(''):emptyBox('🔍','No products found','Try another name or reference number. We can also check availability for you on WhatsApp.',`<a class="eb pri" href="https://wa.me/${WA}?text=${encodeURIComponent((LANG==='ar'?'مرحباً أوكسيناب، هل يتوفر لديكم: ':'Hello Oxinab, do you have: ')+$('hq').value.trim())}" target="_blank" rel="noopener">💬 ${t('Ask on WhatsApp')}</a>${q?`<button class="eb" onclick="search('')">${t('Clear search')}</button>`:''}`);
+ $('g').removeAttribute('aria-busy');$('cnt').textContent=f.length+' '+t(f.length===1?'product':'products');
 }
 function drawCart(){
  const ks=Object.keys(cart),pr=ks.every(k=>isD(k)||SHOW_PRICES&&byId[k].pr>0);
  $('cn').textContent=qty();
- $('ci').innerHTML=ks.length?ks.map(k=>{if(isD(k)){const d=DL[k.slice(2)];return `<div class="it" style="--c:#e8590c"><div><b>${d.k==='f'?'⚡':'🎁'} ${esc(dt(d))}</b><span class="mu sm" dir="ltr">${esc(d.items.map(i=>i.q+'× '+i.id).join(', '))} · ${money(d.pr)}</span></div>${stepper(k)}</div>`}const p=byId[k];return `<div class="it" style="--c:${CATS[p.ci].c}"><div><b>${esc(nm(p))}</b>${(()=>{const L=lineP(p,k),fr=L.fq?(LANG==='ar'?'+⁦'+L.fq+'⁩ '+t('free'):'+'+L.fq+' free'):'';return `<span class="mu sm" dir="ltr">${p.id}${SHOW_PRICES&&L.pr?' · '+money(L.pr):''}</span>`
+ $('ci').innerHTML=ks.length?ks.map(k=>{if(isD(k)){const d=DL[k.slice(2)];return `<div class="it" style="--c:#e8590c"><span class="it-th" aria-hidden="true">${d.k==='f'?'⚡':'🎁'}</span><div><b>${d.k==='f'?'⚡':'🎁'} ${esc(dt(d))}</b><span class="mu sm" dir="ltr">${esc(d.items.map(i=>i.q+'× '+i.id).join(', '))} · ${money(d.pr)}</span></div>${stepper(k)}</div>`}const p=byId[k];return `<div class="it" style="--c:${CATS[p.ci].c}"><span class="it-th" aria-hidden="true">${p.im?imgTag(p.im,'','loading="lazy"'):CATS[p.ci].e}</span><div><b>${esc(nm(p))}</b>${(()=>{const L=lineP(p,k),fr=L.fq?(LANG==='ar'?'+⁦'+L.fq+'⁩ '+t('free'):'+'+L.fq+' free'):'';return `<span class="mu sm" dir="ltr">${p.id}${SHOW_PRICES&&L.pr?' · '+money(L.pr):''}</span>`
 +(p.xo?`<span class="opt" role="radiogroup" aria-label="${t('Choose your offer')}"><button role="radio" aria-checked="${L.o==='d'}" class="${L.o==='d'?'on':''}" onclick="setOpt('${k}','d')">${LANG==='ar'?'حسم ⁦'+p.dc+'%⁩':p.dc+'% off'}${SHOW_PRICES&&p.rp?`<small>${t('Profit')} <span dir="ltr">${money(lineProfit(p,k,'d'))}</span></small>`:''}</button><button role="radio" aria-checked="${L.o==='f'}" class="${L.o==='f'?'on':''}" onclick="setOpt('${k}','f')">🎁 ${LANG==='ar'?'⁦'+p.ob+'+'+p.of+'⁩ مجاناً':p.ob+'+'+p.of+' free'}${(cart[k]||0)<p.ob?`<small>${LANG==='ar'?'من ⁦'+p.ob+'⁩ قطع':'from '+p.ob+' units'}</small>`:SHOW_PRICES&&p.rp?`<small>${t('Profit')} <span dir="ltr">${money(lineProfit(p,k,'f'))}</span></small>`:''}</button></span>${L.o==='f'?`<span class="sm ofl">${fr||ofTxt(p).replace(/^(Or: |أو )/,'')}</span>`:''}`
-:p.ob?`<span class="sm ofl">🎁 ${fr||ofTxt(p)}</span>`:'')})()}</div>${stepper(k)}</div>`}).join(''):'<p class="mu">'+t('Your order is empty. Add products from the catalogue.')+'</p>';
+:p.ob?`<span class="sm ofl">🎁 ${fr||ofTxt(p)}</span>`:'')})()}</div>${stepper(k)}</div>`}).join(''):emptyBox('🛒','Your order is empty','Add products from the catalogue and send your order on WhatsApp in one tap.',`<button class="eb pri" onclick="openCart(false);document.getElementById('shop').scrollIntoView({behavior:'smooth'})">${t('Browse products')}</button>${Object.keys(DL).length?`<button class="eb" onclick="openCart(false);document.getElementById('deals').scrollIntoView({behavior:'smooth'})">${t("See this week's deals")}</button>`:''}`);
+ $('dr').classList.toggle('none',!ks.length);
  $('tt').innerHTML=pr?`<span>${t('Estimated total')}</span><span dir="ltr">${money(tot())}</span>`:`<span>${t('Items')}</span><span>${qty()}</span>`;
  {let tp=$('tp');if(!tp){tp=document.createElement('div');tp.id='tp';$('tt').after(tp)}const pf=SHOW_PRICES?ks.reduce((s,k)=>s+(!isD(k)&&byId[k]&&byId[k].rp&&(byId[k].dc||byId[k].ob)?lineProfit(byId[k],k):0),0):0;
  tp.hidden=!(pr&&pf>0);tp.innerHTML=pf>0?`<span>${t('Your profit')}</span><span dir="ltr">${money(pf)}</span>`:''}
@@ -180,16 +192,29 @@ $('wa').addEventListener('click',async e=>{
   const r=await fetch('/api/order',{method:'POST',headers:{'content-type':'application/json'},body,keepalive:true,signal:ac.signal});clearTimeout(tm);
   if(r.ok){ok=true;obxSet(obx().filter(x=>x.id!==id));try{const j=await r.json();remember(id,j.u);if(j.u)orderPush([j.u],false)}catch(e){}}else diag('order_http_'+r.status);
  }catch(err){diag('order_net_'+(err&&err.name||'err'))}
- toast(ok?(LANG==='ar'?'تم استلام الطلب رقم '+id+'. تابعه في «طلباتي».':'Order #'+id+' received. Follow it in My orders.'):(LANG==='ar'?'الطلب محفوظ على هاتفك وسيُرسل لاحقاً':'Order saved on your phone, it will be sent when you are back online'));
+ sentSheet(id,ok);
  OID=newOID();sending=false;
- setTimeout(()=>{location.href=href;drawCart()},ok?600:1200);
+ setTimeout(()=>{location.href=href;drawCart()},ok?1100:1600);
 });
+/* Order confirmation: a check mark, the order number and what happens next, shown while WhatsApp opens.
+   It stays on screen, so a customer coming back from WhatsApp can go straight to tracking. */
+function sentSheet(id,ok){
+ const old=document.querySelector('.sent');if(old)old.remove();openCart(false);
+ const o=document.createElement('div');o.className='sent';o.setAttribute('role','dialog');o.setAttribute('aria-modal','true');o.setAttribute('aria-labelledby','sentt');
+ o.innerHTML=`<div class="sent-b"><svg class="sent-ok${ok?'':' wait'}" viewBox="0 0 52 52" aria-hidden="true"><circle cx="26" cy="26" r="23"/><path d="M15 27l7 7 15-15"/></svg>
+<h3 id="sentt">${t(ok?'Order received':'Order saved on your phone')}</h3>
+<div class="sent-n"><span>${t('Order number')}</span><b dir="ltr">#${esc(id)}</b></div>
+<p class="mu">${t(ok?'Opening WhatsApp to confirm your order…':'It will be sent when you are back online. Opening WhatsApp…')}</p>
+<div class="empty-b">${ok?`<button class="eb pri" data-a="trk">📦 ${t('Track my order')}</button>`:''}<button class="eb" data-a="x">${t('Continue shopping')}</button></div></div>`;
+ o.onclick=e=>{const a=e.target.closest('[data-a]');if(e.target===o||a){o.remove();if(a&&a.dataset.a==='trk')trkOpen()}};
+ document.body.appendChild(o);const b=o.querySelector('[data-a]');if(b)b.focus({preventScroll:true});
+}
 /* Problems on customers' phones are reported (no personal details) so they can be fixed. */
 let dg=0;function diag(m){if(dg++>5)return;try{navigator.sendBeacon('/api/order',new Blob([JSON.stringify({diag:String(m).slice(0,300),ua:navigator.userAgent.slice(0,160),sa:standaloneNow()})],{type:'text/plain;charset=UTF-8'}))}catch(e){}}
 function standaloneNow(){try{return matchMedia('(display-mode: standalone)').matches}catch(e){return false}}
 addEventListener('error',e=>diag('js:'+(e.message||'')+' @'+(e.lineno||0)));
 addEventListener('unhandledrejection',e=>diag('rej:'+(e.reason&&e.reason.message||e.reason||'')));
-function ch(id,d){if(isD(id)){const x=DL[id.slice(2)];if(!x)return;let n=Math.max(0,Math.min(99,(cart[id]||0)+d));if(d>0&&!dealOk(x))n=cart[id]||0;cart[id]=n;if(!cart[id])delete cart[id];save();dealsDraw();drawCart();return}const p=byId[id];if(!p)return;let n=Math.max(0,(cart[id]||0)+d);if(p.s!=null)n=Math.min(n,p.s);cart[id]=n;if(!cart[id])delete cart[id];save();draw();drawCart()}
+function ch(id,d){if(isD(id)){const x=DL[id.slice(2)];if(!x)return;let n=Math.max(0,Math.min(99,(cart[id]||0)+d));if(d>0&&!dealOk(x))n=cart[id]||0;if(n>(cart[id]||0))bump();cart[id]=n;if(!cart[id])delete cart[id];save();dealsDraw();drawCart();return}const p=byId[id];if(!p)return;let n=Math.max(0,(cart[id]||0)+d);if(p.s!=null)n=Math.min(n,p.s);if(n>(cart[id]||0))bump();cart[id]=n;if(!cart[id])delete cart[id];save();draw();drawCart()}
 function chips(){
  const ix=CATS.map((c,i)=>i).filter(i=>cnt[i]>0),n=ix.reduce((a,i)=>a+cnt[i],0);
  $('chips').innerHTML=`<button class="chip ${cat<0?'on':''}" data-i="-1">${t('All')}<em>${n}</em></button>`+ix.map(i=>{const c=CATS[i];return `<button class="chip ${cat===i?'on':''}" style="--c:${c.c}" data-i="${i}">${esc(cnm(i))}<em>${cnt[i]}</em></button>`}).join('');
@@ -203,16 +228,17 @@ $('hq').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();$('shop').scrollInt
 $('g').addEventListener('click',e=>{const im=e.target.closest('.th img');if(!im)return;const o=document.createElement('div');o.id='lb';o.setAttribute('role','dialog');o.setAttribute('aria-label',im.alt);const i2=document.createElement('img');i2.src=im.src;i2.alt=im.alt;o.appendChild(i2);o.onclick=()=>o.remove();document.body.appendChild(o)});
 const openCart=o=>{$('dr').classList.toggle('open',o);$('ov').classList.toggle('open',o)};
 $('cb').onclick=()=>openCart(true);$('cx').onclick=$('ov').onclick=()=>openCart(false);
-document.onkeydown=e=>{if(e.key==='Escape'){openCart(false);const l=$('lb');if(l)l.remove();const s=document.querySelector('.sheet');if(s)s.remove()}};
+document.onkeydown=e=>{if(e.key==='Escape'){openCart(false);const l=$('lb');if(l)l.remove();const s=document.querySelector('.sheet,.sent');if(s)s.remove()}};
 
 /* ===== Catalogue: shown from the phone's saved copy first, then refreshed from the server ===== */
 async function refresh(){
  try{const r=await fetch('/api/catalog',{cache:'no-cache'});if(!r.ok)throw 0;const d=await r.json();load(d);try{localStorage.setItem('oxd',JSON.stringify(d))}catch(e){}return}catch(e){}
- if(!D){try{const r=await fetch('/catalog.json');load(await r.json())}catch(e){$('g').innerHTML='<p class="mu">'+t('No match. Message us on WhatsApp and we will check availability for you.')+'</p>'}}
+ if(!D){try{const r=await fetch('/catalog.json');load(await r.json())}catch(e){$('g').innerHTML=emptyBox('📡','Could not load the catalogue','Check your internet connection and try again.',`<button class="eb pri" onclick="refresh()">${t('Try again')}</button><a class="eb" href="https://wa.me/${WA}" target="_blank" rel="noopener">💬 ${t('Ask on WhatsApp')}</a>`)}}
 }
 try{const s=localStorage.getItem('oxd');if(s)load(JSON.parse(s))}catch(e){}
 const hc=()=>{if(location.hash==='#deals'){setTimeout(()=>{const e=$('deals');if(e&&!e.hidden)e.scrollIntoView()},50);return}const m=location.hash.match(/^#c(\d+)$/);if(m){cat=+m[1];if(D){chips();draw()}setTimeout(()=>$('shop').scrollIntoView(),50)}};hc();addEventListener('hashchange',hc);
 stat();refresh();
+{const h=document.querySelector('header.top'),f=()=>h.classList.toggle('sc',scrollY>8);addEventListener('scroll',f,{passive:true});f()}
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){refresh();flushOrders(3000)}});
 addEventListener('online',()=>flushOrders(0));setTimeout(()=>flushOrders(3000),2000);
 
