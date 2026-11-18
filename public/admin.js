@@ -86,8 +86,23 @@ function state() {
   $("publish").disabled = !n || !ME.storage; $("discard").hidden = !n;
 }
 addEventListener("beforeunload", (e) => { if (dirty()) { e.preventDefault(); e.returnValue = ""; } });
+/* A publish that would wipe many products, prices or offers asks first: it usually means the page holds an old copy. */
+function riskyPublish() {
+  if (!LIVE) return "";
+  const wp = new Map(W.items.map((i) => [i.id, i]));
+  const gone = LIVE.items.filter((i) => !wp.has(i.id)).length;
+  const lost = LIVE.items.filter((i) => i.p > 0 && wp.has(i.id) && !(wp.get(i.id).p > 0)).length;
+  const offs = LIVE.items.filter((i) => (i.dc || i.ob) && wp.has(i.id) && !(wp.get(i.id).dc || wp.get(i.id).ob)).length;
+  const w = [];
+  if (gone >= 5) w.push(gone + " products will be removed");
+  if (lost >= 5) w.push(lost + " products will lose their price");
+  if (offs >= 5) w.push(offs + " products will lose their discount or offer");
+  return w.join(", ");
+}
 $("publish").onclick = async () => {
-  const b = $("publish"); b.disabled = true; b.textContent = "Publishing…";
+  const b = $("publish"), risk = riskyPublish();
+  if (risk && !confirm("Careful: " + risk + ".\n\nIf you did not mean this, press Cancel and reload the page to get the latest catalogue.\n\nPublish anyway?")) return;
+  b.disabled = true; b.textContent = "Publishing…";
   try {
     const r = await api("/api/admin/catalog", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ base: VERSION, data: W }) });
     LIVE = r.data; VERSION = r.version; W = clone(LIVE);
@@ -134,7 +149,7 @@ function renderProducts() {
 <select id="fs" aria-label="Status"><option value="all">All products</option><option value="on">Online</option><option value="off">Offline</option><option value="out">Out of stock</option><option value="low">Low stock</option><option value="none">No stock entered</option></select>
 <button class="btn pri" id="new">+ New product</button></div>
 <div class="bar bulk"><b class="sm">Bulk stock and prices:</b><button class="btn" id="bkx">⬇ Download Excel</button><button class="btn" id="bkc">⬇ CSV</button><label class="btn">⬆ Upload filled file<input type="file" id="bkf" accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden></label><span class="mu sm">Edit the Price, Stock and Online columns, upload, check, then publish. Rows with a new Ref and a Name are added as new products.</span></div>
-<div class="tw"><table><thead><tr><th></th><th>Ref</th><th>Name</th><th>Category</th><th>Price ($)</th><th>Stock</th><th>Online</th><th></th></tr></thead><tbody id="rows"></tbody></table></div>
+<div class="tw"><table><thead><tr><th></th><th>Ref</th><th>Name</th><th>Category</th><th>Price ($)</th><th title="Client discount on the price">Discount (%)</th><th title="Buy this many, get that many free">Offer: buy + free</th><th title="The client chooses either the discount or the free goods">Choose one</th><th>Stock</th><th>Online</th><th></th></tr></thead><tbody id="rows"></tbody></table></div>
 <div class="pg" id="pg"></div>`;
     el.dataset.ready = 1;
     $("fq").oninput = (e) => { F.q = e.target.value; F.pg = 0; rows(); };
@@ -146,6 +161,14 @@ function renderProducts() {
       if (e.target.dataset.f === "p") { const v = parseFloat(e.target.value); i.p = isFinite(v) && v >= 0 ? Math.round(v * 100) / 100 : 0; }
       if (e.target.dataset.f === "s") { const v = e.target.value.trim(); i.s = v === "" ? null : Math.max(0, Math.floor(+v) || 0); }
       if (e.target.dataset.f === "on") i.off = e.target.checked ? 0 : 1;
+      const f = e.target.dataset.f, drop = (k) => { i[k] = undefined; Reflect.deleteProperty(i, k); };
+      if (f === "dc") { const v = parseFloat(e.target.value); if (isFinite(v) && v > 0 && v <= 90) i.dc = Math.round(v * 100) / 100; else drop("dc"); }
+      if (f === "ob" || f === "of") {
+        const v = Math.floor(+e.target.value); i[f] = isFinite(v) && v > 0 && v <= 999 ? v : 0;
+        if (!i.ob) drop("ob"); if (!i.of) drop("of");
+      }
+      if (f === "xo") { if (e.target.checked) i.xo = 1; else drop("xo"); }
+      if (!(i.dc && i.ob && i.of)) drop("xo");
       rows(); state();
     });
     $("rows").addEventListener("click", (e) => { const b = e.target.closest("button[data-edit]"); if (b) edit(b.dataset.edit); });
@@ -162,8 +185,8 @@ function rows() {
   $("rows").innerHTML = it.slice(F.pg * PER, F.pg * PER + PER).map((i) => {
     const c = W.cats[i.k] || { n: "?", e: "📦" }, chg = snap(live(i.id) || {}) !== snap(i);
     const pill = noStock(i) ? '<span class="pill out" title="No stock number entered, so customers see Out of stock.">Not set</span>' : isOut(i) ? '<span class="pill out">Out</span>' : isLow(i) ? '<span class="pill low">Low</span>' : "";
-    return `<tr data-id="${esc(i.id)}" class="${i.off ? "off" : ""}${chg ? " chg" : ""}"><td class="th">${i.im ? `<img src="${esc(i.im)}" alt="" loading="lazy">` : `<span>${c.e}</span>`}</td><td><span class="ref">${esc(i.id)}</span></td><td>${esc(i.n)}<small>${esc(i.a || "")}</small></td><td>${esc(c.n)}</td><td><input class="n" type="number" min="0" step="0.01" inputmode="decimal" value="${i.p || 0}" data-f="p" aria-label="Price of ${esc(i.id)}">${i.dc || i.ob ? `<small class="mu" title="Client discount and free goods offer">${[i.dc ? "−" + i.dc + "%" : "", i.ob ? i.ob + "+" + i.of + " free" : ""].filter(Boolean).join(i.xo ? " or " : " · ")}</small>` : ""}</td><td><div class="row"><input class="n" type="number" min="0" step="1" inputmode="numeric" placeholder="—" value="${i.s == null ? "" : i.s}" data-f="s" aria-label="Stock of ${esc(i.id)}">${pill}</div></td><td><label class="sw"><input type="checkbox" data-f="on" ${i.off ? "" : "checked"} aria-label="${esc(i.id)} online"><i></i></label></td><td><button class="btn" data-edit="${esc(i.id)}">Edit</button></td></tr>`;
-  }).join("") || `<tr><td colspan="8" class="mu">No products match.</td></tr>`;
+    return `<tr data-id="${esc(i.id)}" class="${i.off ? "off" : ""}${chg ? " chg" : ""}"><td class="th">${i.im ? `<img src="${esc(i.im)}" alt="" loading="lazy">` : `<span>${c.e}</span>`}</td><td><span class="ref">${esc(i.id)}</span></td><td>${esc(i.n)}<small>${esc(i.a || "")}</small></td><td>${esc(c.n)}</td><td><input class="n" type="number" min="0" step="0.01" inputmode="decimal" value="${i.p || 0}" data-f="p" aria-label="Price of ${esc(i.id)}">${i.dc && i.p ? `<small class="mu" title="Price the client pays">Client pays $${(Math.round(i.p * (100 - i.dc)) / 100).toFixed(2)}</small>` : ""}</td><td><input class="n s" type="number" min="0" max="90" step="0.5" inputmode="decimal" placeholder="—" value="${i.dc || ""}" data-f="dc" aria-label="Discount of ${esc(i.id)}"></td><td><div class="row nw"><input class="n s" type="number" min="0" max="999" step="1" inputmode="numeric" placeholder="—" value="${i.ob || ""}" data-f="ob" aria-label="Offer buy quantity of ${esc(i.id)}"><span class="mu">+</span><input class="n s" type="number" min="0" max="999" step="1" inputmode="numeric" placeholder="—" value="${i.of || ""}" data-f="of" aria-label="Offer free quantity of ${esc(i.id)}"></div></td><td><input type="checkbox" data-f="xo" ${i.xo ? "checked" : ""} ${i.dc && i.ob ? "" : "disabled"} title="${i.dc && i.ob ? "Ticked: the client picks the discount or the free goods. Not ticked: they get both." : "Needs both a discount and an offer"}" aria-label="${esc(i.id)}: client chooses one"></td><td><div class="row"><input class="n" type="number" min="0" step="1" inputmode="numeric" placeholder="—" value="${i.s == null ? "" : i.s}" data-f="s" aria-label="Stock of ${esc(i.id)}">${pill}</div></td><td><label class="sw"><input type="checkbox" data-f="on" ${i.off ? "" : "checked"} aria-label="${esc(i.id)} online"><i></i></label></td><td><button class="btn" data-edit="${esc(i.id)}">Edit</button></td></tr>`;
+  }).join("") || `<tr><td colspan="11" class="mu">No products match.</td></tr>`;
   $("pg").innerHTML = pages > 1 ? `<button class="btn" id="pp" ${F.pg < 1 ? "disabled" : ""}>‹ Previous</button><span class="mu sm">Page ${F.pg + 1} of ${pages} · ${it.length} products</span><button class="btn" id="pn" ${F.pg >= pages - 1 ? "disabled" : ""}>Next ›</button>` : `<span class="mu sm">${it.length} products · Empty stock shows as out of stock</span>`;
   if ($("pp")) { $("pp").onclick = () => { F.pg--; rows(); }; $("pn").onclick = () => { F.pg++; rows(); }; }
 }
