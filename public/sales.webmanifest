@@ -1,0 +1,31 @@
+{
+  "name": "Oxinab Sales",
+  "short_name": "Oxinab Sales",
+  "id": "/sales",
+  "start_url": "/sales?source=app",
+  "scope": "/sales",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f3f6fa",
+  "theme_color": "#001765",
+  "icons": [
+    {
+      "src": "/icons/sales-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/sales-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/sales-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

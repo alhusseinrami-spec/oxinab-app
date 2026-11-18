@@ -1,5 +1,6 @@
-import { clearCookie, clearDriverCookie, driverCookie, json, checkPassword, passwordConfigured, sessionCookie, sameOrigin, blobReady } from "../_lib.js";
+import { clearCookie, clearDriverCookie, driverCookie, repCookie, clearRepCookie, json, checkPassword, passwordConfigured, sessionCookie, sameOrigin, blobReady } from "../_lib.js";
 import { loadDrivers, checkPin, normPhone, pinVer } from "../_drivers.js";
+import { loadReps } from "../_sales.js";
 
 const tries = new Map(); // best effort, per server instance
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -27,6 +28,21 @@ export async function POST(req) {
     tries.delete(ip);
     return json({ ok: true, driver: { id: d.id, n: d.n } }, 200, { "set-cookie": driverCookie(d.id, pinVer(d)) });
   }
+  // A sales rep signing in to the sales app: { rep: phone, pin }
+  if (body.rep !== undefined) {
+    if (!blobReady()) return json({ error: "storage_not_connected" }, 503);
+    const ph = normPhone(body.rep);
+    const r = ph.length >= 6 ? (await loadReps()).find((x) => x.on && normPhone(x.tel) === ph) : null;
+    if (!r || !checkPin(r, body.pin)) {
+      t.n++;
+      if (t.n >= 5) { t.until = Date.now() + 15 * 60e3; t.n = 0; }
+      tries.set(ip, t);
+      await wait(800);
+      return json({ error: "wrong_pin" }, 401);
+    }
+    tries.delete(ip);
+    return json({ ok: true, rep: { id: r.id, n: r.n } }, 200, { "set-cookie": repCookie(r.id, pinVer(r)) });
+  }
   if (!checkPassword(body.password)) {
     t.n++;
     if (t.n >= 5) { t.until = Date.now() + 15 * 60e3; t.n = 0; }
@@ -39,9 +55,9 @@ export async function POST(req) {
 }
 
 // Sign out (kept in this file: the Hobby plan allows 12 API routes).
-// Signs out of both the command center and the driver app on this device.
+// Signs out of the command center, the driver app and the sales app on this device.
 export function DELETE() {
   const h = new Headers({ "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
-  h.append("set-cookie", clearCookie()); h.append("set-cookie", clearDriverCookie());
+  h.append("set-cookie", clearCookie()); h.append("set-cookie", clearDriverCookie()); h.append("set-cookie", clearRepCookie());
   return new Response(JSON.stringify({ ok: true }), { status: 200, headers: h });
 }

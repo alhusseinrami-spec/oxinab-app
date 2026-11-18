@@ -56,7 +56,7 @@ async function start() {
   LIVE = r.data; VERSION = r.version;
   if (!W) W = clone(LIVE);
   $("app").hidden = false; $("login").hidden = true;
-  warn(); render(); loadOrders();
+  warn(); render(); loadOrders(); if (typeof salesLoad === "function") salesLoad();
 }
 function warn() {
   const w = [];
@@ -108,11 +108,11 @@ document.querySelector("nav.tabs").onclick = (e) => {
   const b = e.target.closest("button[data-t]"); if (!b) return;
   TAB = b.dataset.t;
   document.querySelectorAll("nav.tabs button").forEach((x) => x.setAttribute("aria-selected", x === b ? "true" : "false"));
-  ["products", "orders", "banners", "deals", "competitors", "cats", "push", "settings"].forEach((t) => ($("t-" + t).hidden = t !== TAB));
+  ["products", "orders", "banners", "deals", "competitors", "cats", "sales", "push", "settings"].forEach((t) => ($("t-" + t).hidden = t !== TAB));
   render();
   if (TAB === "orders") loadOrders();
 };
-function render() { state(); ({ products: renderProducts, orders: renderOrders, banners: renderBanners, deals: renderDeals, competitors: () => cmpRender(), cats: renderCats, push: renderPush, settings: renderSettings })[TAB](); }
+function render() { state(); ({ products: renderProducts, orders: renderOrders, banners: renderBanners, deals: renderDeals, competitors: () => cmpRender(), cats: renderCats, sales: () => salesRender(), push: renderPush, settings: renderSettings })[TAB](); }
 
 /* ---------- Products ---------- */
 const live = (id) => LIVE.items.find((i) => i.id === id);
@@ -517,7 +517,7 @@ function renderOrders() {
 <ul>${o.items.map((i) => `<li>${i.q} × ${esc(i.n)}${i.fq ? ` <b>+ ${i.fq} free</b>` : ""} <span class="mu sm">${esc(i.id)}${i.p ? " · " + usd(i.p) : ""}${i.dc ? ` (${i.dc}% off ${usd(i.rp)})` : ""}${i.o ? ` · chose ${i.o === "f" ? "free goods" : "discount"}` : ""}</span></li>`).join("")}</ul></div>
 <div style="text-align:end"><b style="font-size:17px">${o.total != null ? usd(o.total) : '<span class="mu sm">No total (prices missing)</span>'}</b><br>
 <select data-o="${esc(o.id)}" aria-label="Status of order ${esc(o.id)}" style="margin-top:6px">${Object.keys(ST).map((s) => `<option value="${s}" ${s === o.status ? "selected" : ""}>${ST[s]}</option>`).join("")}</select><br><label class="eta">Driver<select data-drv="${esc(o.id)}" aria-label="Driver for order ${esc(o.id)}"><option value="">Not assigned</option>${DRV.filter((d) => d.on || d.id === o.drv).map((d) => `<option value="${esc(d.id)}" ${d.id === o.drv ? "selected" : ""}>${esc(d.n)}</option>`).join("")}</select></label><label class="eta">Delivery expected<input type="datetime-local" data-eta="${esc(o.id)}" value="${localDT(o.eta)}" aria-label="Expected delivery of order ${esc(o.id)}"></label><button class="btn" data-pf="${esc(o.id)}" style="margin-top:6px">📄 Proforma</button></div>
-<div class="meta"><span>🕒 ${when(o.at)}</span><span>👤 ${esc(o.name || "No name given")}</span>${o.phone ? `<span>📞 <a href="https://wa.me/${esc(tel)}" target="_blank" rel="noopener">${esc(o.phone)}</a></span>` : ""}${o.addr ? `<span>📍 ${esc(o.addr)}</span>` : ""}<span>${o.lang === "ar" ? "Arabic" : "English"}</span>${o.note ? (/#([A-Z0-9]{6})$/.test(o.note) ? `<span>🧾 <a href="#" data-cmpgo="${esc(o.note.slice(-6))}">${esc(o.note)}</a></span>` : `<span>📝 ${esc(o.note)}</span>`) : ""}</div></article>`;
+<div class="meta"><span>🕒 ${when(o.at)}</span><span>👤 ${esc(o.name || "No name given")}</span>${o.phone ? `<span>📞 <a href="https://wa.me/${esc(tel)}" target="_blank" rel="noopener">${esc(o.phone)}</a></span>` : ""}${o.addr ? `<span>📍 ${esc(o.addr)}</span>` : ""}${o.rep ? `<span>👔 Sales rep: ${esc(o.rep.n)}</span>` : `<span>${o.lang === "ar" ? "Arabic" : "English"}</span>`}${o.note ? (/#([A-Z0-9]{6})$/.test(o.note) ? `<span>🧾 <a href="#" data-cmpgo="${esc(o.note.slice(-6))}">${esc(o.note)}</a></span>` : `<span>📝 ${esc(o.note)}</span>`) : ""}</div></article>`;
     }).join("") : `<div class="panel"><p class="mu" style="margin:0">${ORD.length ? "No orders match these filters." : "No orders yet. They appear here when customers send an order from the catalogue."}</p></div>`;
   }
 }
