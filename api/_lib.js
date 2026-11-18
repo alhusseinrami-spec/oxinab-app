@@ -75,6 +75,25 @@ export function driverFromReq(req) {
   return Number(exp) > Date.now() ? { id, pv } : null;
 }
 
+/* ---------- Sales rep sign-in ----------
+   Same idea as drivers: phone number and PIN set in the command center; a new PIN or switching the rep off signs them out. */
+const RCOOKIE = "oxsr", REP_DAYS = 30;
+export function repCookie(id, pv) {
+  const exp = String(Date.now() + REP_DAYS * 864e5), v = `${id}.${pv}.${exp}`;
+  return `${RCOOKIE}=${v}.${sign("rep:" + v)}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${REP_DAYS * 86400}`;
+}
+export const clearRepCookie = () => `${RCOOKIE}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0`;
+export function repFromReq(req) {
+  if (!passwordConfigured()) return null;
+  const m = (req.headers.get("cookie") || "").match(/(?:^|;\s*)oxsr=([^;]+)/);
+  if (!m) return null;
+  const [id, pv, exp, sig] = m[1].split(".");
+  if (!id || !pv || !exp || !sig) return null;
+  const want = sign(`rep:${id}.${pv}.${exp}`);
+  if (want.length !== sig.length || !timingSafeEqual(Buffer.from(want), Buffer.from(sig))) return null;
+  return Number(exp) > Date.now() ? { id, pv } : null;
+}
+
 /* Admin writes must come from this site (blocks cross-site form posts). */
 export function sameOrigin(req) {
   const o = req.headers.get("origin");

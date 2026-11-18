@@ -59,6 +59,19 @@
           "value": "public, max-age=604800"
         }
       ]
+    },
+    {
+      "source": "/sales(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        },
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex"
+        }
+      ]
     }
   ],
   "rewrites": [
@@ -69,9 +82,24 @@
     {
       "source": "/api/admin/compare",
       "destination": "/api/admin/orders?do=compare"
+    },
+    {
+      "source": "/api/sales",
+      "destination": "/api/admin/proforma?do=sales"
     }
   ],
   "redirects": [
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "oxinab-sales.vercel.app"
+        }
+      ],
+      "destination": "/sales",
+      "permanent": false
+    },
     {
       "source": "/",
       "has": [

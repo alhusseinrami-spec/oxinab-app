@@ -122,7 +122,7 @@ function pfPages(d) {
   const tail = `<div class="sumrow"><div class="words">${d.note ? `<h4>Note</h4><p>${nl(d.note)}</p>` : ""}${c.pay ? `<h4>Payment</h4><p>${nl(c.pay)}</p>` : ""}${c.bank ? `<h4>Bank details</h4><p>${nl(c.bank)}</p>` : ""}</div>
 <table class="tot"><tr><td>Subtotal</td><td>${money2(s.sub)}</td></tr>${s.disc ? `<tr><td>Discount</td><td>−${money2(s.disc)}</td></tr>` : ""}${s.ship ? `<tr><td>Delivery</td><td>${money2(s.ship)}</td></tr>` : ""}${d.vat ? `<tr><td>VAT ${d.vat}%</td><td>${money2(s.vat)}</td></tr>` : ""}<tr class="g"><td>Total (USD)</td><td>${money2(s.total)}</td></tr></table></div>
 ${c.terms ? `<div class="terms"><h4>Terms and conditions</h4><ul>${c.terms.split("\n").filter((x) => x.trim()).map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>` : ""}
-<p class="fine">This is a proforma invoice, not a tax invoice. Prices are valid until ${dfmt(until)}.</p><div class="sign"><div>Prepared by ${esc(c.co)}</div><div>Client acceptance (name, signature, date)</div></div>`;
+<p class="fine">This is a proforma invoice, not a tax invoice. Prices are valid until ${dfmt(until)}.</p><div class="sign"><div>Prepared by ${d.rep && d.rep.n ? esc(d.rep.n) + ", " : ""}${esc(c.co)}${d.rep && d.rep.tel ? ` · <span dir="ltr">${esc(d.rep.tel)}</span>` : ""}</div><div>Client acceptance (name, signature, date)</div></div>`;
   p.querySelector(".tail").innerHTML = tail;
   if (full(p)) { p.querySelector(".tail").innerHTML = ""; p = page(false); p.querySelector(".it").remove(); p.querySelector(".tail").innerHTML = tail; }
   pages.forEach((x, i) => (x.querySelector(".pg").textContent = `Page ${i + 1} of ${pages.length}`));
