@@ -4,13 +4,13 @@
    Reps: name, phone, PIN (salted hash only), monthly target in $, the most extra discount they may give without approval.
    Each rep's work is one record, "sr:<rep id>", so two reps saving at the same time never overwrite each other:
      cl  clients and leads   { id, st:"client"|"lead", stg (lead stage), n, co, k (type), tel, em, addr, area, lat, lng, dc, note, nx (follow-up date), nxn, at, up }
-     of  offers              { id, cl, lines:[{ id, n, q, p, b (standard price), lp (list price), fq }], disc, ship, vat, valid, note, st, ap, apk, pf, ord, at, up }
+     of  offers              { id, cl, lines:[{ id, n, q, p, b (standard price), lp (list price), fq (catalogue offer), fr (free items the rep adds) }], disc, ship, vat, valid, note, st, ap, apk, pf, ord, at, up }
      vs  visits (check-ins)  { id, cl, in, out, lat, lng, acc, d (metres from the client's saved place), res, note }
      od  orders placed       { id, cl, of, total, at }
    Orders a rep places go into the normal order log, so they show in the command center and can be given to a driver. */
 import { randomBytes } from "node:crypto";
 import { list, put } from "@vercel/blob";
-import { json, guard, isAdmin, repFromReq, sameOrigin, blobReady, loadCatalogFast, netPrice, freeQty } from "./_lib.js";
+import { json, guard, isAdmin, repFromReq, sameOrigin, blobReady, loadCatalogFast, loadCatalog, saveCatalog, netPrice, freeQty } from "./_lib.js";
 import { getState, setState, saveOrder, writeTrack, trackFromOrder } from "./_orders.js";
 import { hashPin, checkPin, normPhone, pinVer } from "./_drivers.js";
 import { cleanDoc, issueProforma, loadCfg } from "./_proforma.js";
@@ -102,16 +102,19 @@ async function priceOffer(o, client, old, free = true) {
     const it = byId.get(str(l.id, 24));
     if (it) {
       const b = Math.round(netPrice(it) * (1 - cdc / 100) * 100) / 100;
-      const p = !free || l.p === "" || l.p === null || l.p === undefined ? b : num(l.p, 0, 1e7);
-      const fq = it.ob && !it.xo ? freeQty(it, q) : 0;
-      return { id: it.id, n: str(l.n, 160) || it.n, q, p, b, lp: it.p || 0, ...(fq ? { fq } : {}) };
+      const ld = Number(l.ld), lp0 = it.p || 0;
+      const p = !free ? b
+        : l.ld !== undefined && l.ld !== "" && l.ld !== null && isFinite(ld) && lp0 > 0 ? Math.round(lp0 * (1 - Math.min(100, Math.max(0, ld)) / 100) * 100) / 100
+        : l.p === "" || l.p === null || l.p === undefined ? b : num(l.p, 0, 1e7);
+      const fq = it.ob && !it.xo ? freeQty(it, q) : 0, fr = free ? Math.floor(num(l.fr, 0, 99999)) : 0;
+      return { id: it.id, n: str(l.n, 160) || it.n, q, p, b, lp: it.p || 0, ...(fq ? { fq } : {}), ...(fr ? { fr } : {}) };
     }
     if (!free) return null; // custom lines are priced by hand
-    const p = num(l.p, 0, 1e7);
-    return { id: str(l.id, 24), n: str(l.n, 160) || "Item", q, p, b: p, lp: p };
+    const p = num(l.p, 0, 1e7), fr = Math.floor(num(l.fr, 0, 99999));
+    return { id: str(l.id, 24), n: str(l.n, 160) || "Item", q, p, b: p, lp: p, ...(fr ? { fr } : {}) };
   }).filter(Boolean);
   if (!lines.length) throw new Error("no_lines");
-  const sub = lines.reduce((s, l) => s + l.q * l.p, 0), base = lines.reduce((s, l) => s + l.q * l.b, 0);
+  const sub = lines.reduce((s, l) => s + l.q * l.p, 0), base = lines.reduce((s, l) => s + (l.q + (l.fr || 0)) * l.b, 0);
   const disc = free ? Math.min(num(o.disc, 0, 1e7), sub) : 0;
   const extra = base > 0 ? Math.max(0, Math.round((1 - (sub - disc) / base) * 1000) / 10) : 0; // % below the standard price
   return {
@@ -123,7 +126,8 @@ async function priceOffer(o, client, old, free = true) {
   };
 }
 // The approval follows the exact prices: a change to an approved offer needs a new approval if it is still over the limit.
-const priceKey = (o) => JSON.stringify([o.lines.map((l) => [l.id, l.q, l.p]), o.disc]);
+const priceKey = (o) => JSON.stringify([o.lines.map((l) => [l.id, l.q, l.p, l.fr || 0]), o.disc]);
+const freeOf = (l) => (l.fq || 0) + (l.fr || 0);
 const total = (o) => { const sub = o.lines.reduce((s, l) => s + l.q * l.p, 0), b = sub - Math.min(o.disc || 0, sub) + (o.ship || 0); return Math.round((b + b * (o.vat || 0) / 100) * 100) / 100; };
 const blocked = (o) => o.ap === "wait" || o.ap === "no";
 
@@ -235,7 +239,10 @@ export async function salesPOST(req) {
       const doc = cleanDoc({
         order: o.ord || "",
         client: { name: c.n || "", co: c.co || "", phone: c.tel || "", addr: [c.addr, c.area].filter(Boolean).join(", ") },
-        lines: o.lines.flatMap((l) => [{ id: l.id, n: l.n, q: l.q, p: l.p }, ...(l.fq ? [{ id: l.id, n: `${l.n} (free goods)`, q: l.fq, p: 0 }] : [])]),
+        lines: o.lines.flatMap((l) => {
+          const lp = l.lp > 0 ? l.lp : 0, dc = lp && l.p < lp ? Math.round((1 - l.p / lp) * 1000) / 10 : 0;
+          return [{ id: l.id, n: l.n, q: l.q, p: l.p, ...(lp ? { lp, dc } : {}) }, ...(freeOf(l) ? [{ id: l.id, n: `${l.n} (free goods)`, q: freeOf(l), p: 0, free: 1, ...(lp ? { lp, dc: 100 } : {}) }] : [])];
+        }),
         disc: o.disc, ship: o.ship, vat: o.vat || cfg.vat || 0, valid: o.valid || cfg.valid || 7, note: o.note,
       });
       const pf = await issueProforma(doc, { rep: { id: r.id, n: r.n, tel: r.tel } });
@@ -250,7 +257,7 @@ export async function salesPOST(req) {
       if (o.ord) return json({ error: "already_ordered", id: o.ord }, 409);
       const c = client(o.cl); if (!c) return json({ error: "client_needed" }, 400);
       const id = await newOrderId();
-      const items = o.lines.map((l) => ({ id: l.id || "-", n: l.n, q: l.q, p: l.p, ...(l.lp && l.lp > l.p ? { rp: l.lp, dc: Math.round((1 - l.p / l.lp) * 1000) / 10 } : {}), ...(l.fq ? { fq: l.fq } : {}) }));
+      const items = o.lines.map((l) => ({ id: l.id || "-", n: l.n, q: l.q, p: l.p, ...(l.lp && l.lp > l.p ? { rp: l.lp, dc: Math.round((1 - l.p / l.lp) * 1000) / 10 } : {}), ...(freeOf(l) ? { fq: freeOf(l) } : {}) }));
       const extras = [o.disc ? `discount $${o.disc}` : "", o.ship ? `delivery $${o.ship}` : "", o.vat ? `VAT ${o.vat}%` : ""].filter(Boolean).join(", ");
       const order = {
         id, at: now,
@@ -261,6 +268,8 @@ export async function salesPOST(req) {
       await saveOrder(order);
       await put(`oid/${id}.json`, "{}", { access: "public", addRandomSuffix: true, contentType: "application/json" });
       try { await writeTrack(trackFromOrder(order)); } catch (e) { console.error("track.create_failed", id, e && e.message); }
+      // Sold and free units both leave the stock.
+      try { await stockOut(id, o.lines.map((l) => [l.id, l.q + freeOf(l)])); } catch (e) { console.error("sales.stock_failed", id, e && e.message); }
       o.ord = id; o.st = "won"; o.up = now;
       D.od.push({ id, cl: c.id, of: o.id, total: order.total, at: now });
       if (c.st === "lead") { c.st = "client"; c.stg = "won"; }
@@ -270,6 +279,41 @@ export async function salesPOST(req) {
     }
   }
   return json({ error: "bad_request" }, 400);
+}
+
+/* ---------- Stock ----------
+   An order placed from the sales app takes its sold and free units out of the catalogue's stock (products with stock tracked).
+   What was taken is remembered per order ("stk"), so cancelling the order in the command center puts it back,
+   and un-cancelling takes it out again. */
+// Take units out (sign 1) or put them back (sign -1). Returns what really moved, so a cancel puts back exactly that.
+async function moveStock(pairs, sign) {
+  const c = await loadCatalog();
+  if (c.version === "seed") return []; // never publish the built-in list over a real one
+  const byId = new Map(c.data.items.map((i) => [i.id, i])), moved = [];
+  for (const [id, q] of pairs) {
+    const it = byId.get(id); if (!it || it.s === null || it.s === undefined || !(q > 0)) continue;
+    const n = sign > 0 ? Math.min(it.s, q) : q;
+    if (n > 0) { it.s += sign > 0 ? -n : n; moved.push([id, n]); }
+  }
+  if (moved.length) await saveCatalog(c.data);
+  return moved;
+}
+async function stockOut(orderId, pairs) {
+  pairs = pairs.filter(([id, q]) => id && q > 0);
+  const st = (await getState("stk")) || {};
+  st[orderId] = { items: pairs, took: await moveStock(pairs, 1), out: true, at: Date.now() };
+  for (const [k, v] of Object.entries(st)) if (Date.now() - (v.at || 0) > 180 * 864e5) delete st[k];
+  await setState("stk", st);
+}
+// Called by the command center when an order's status changes: a cancel puts the units back, un-cancelling takes them out again.
+export async function stockOnStatus(orderId, status) {
+  const st = await getState("stk"), rec = st && st[orderId];
+  if (!rec) return;
+  const cancel = status === "cancelled";
+  if (cancel && rec.out) { await moveStock(rec.took || [], -1); rec.took = []; rec.out = false; }
+  else if (!cancel && !rec.out) { rec.took = await moveStock(rec.items, 1); rec.out = true; }
+  else return;
+  await setState("stk", st);
 }
 
 // The command center: { do: "reps", reps } | { do: "approve", rep, id, ok } | { do: "move", rep, id, to }

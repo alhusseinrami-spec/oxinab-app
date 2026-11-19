@@ -25,6 +25,9 @@ export function cleanCfg(c = {}) {
 export function cleanDoc(d = {}) {
   const lines = (Array.isArray(d.lines) ? d.lines : []).slice(0, 200).map((l) => ({
     id: str(l.id, 24), n: str(l.n, 160) || "Item", q: Math.round(num(l.q, 0, 99999, 1)), p: num(l.p, 0, 1e7),
+    // Optional: the selling (public) price, so a pharmacist sees what they sell at, and the discount off it.
+    ...(num(l.lp, 0, 1e7) > 0 ? { lp: num(l.lp, 0, 1e7), dc: num(l.dc, 0, 100) } : {}),
+    ...(l.free ? { free: 1 } : {}),
   })).filter((l) => l.q > 0);
   if (!lines.length) throw new Error("no_lines");
   return {

@@ -4,6 +4,7 @@ import { notifyOrder, loadOrders, applyStatus, setEta, updateTrack, findOrder, g
 import { loadDrivers, saveDrivers, hashPin, normPhone, pinVer, publicDriver } from "../_drivers.js";
 import { kvOn, kvSet } from "../_kv.js";
 import { compareList } from "./_compare_list.js";
+import { stockOnStatus } from "../_sales.js";
 
 /* One route for the command center and the driver app (the free plan allows 12 routes).
    Command center (admin cookie): orders, statuses, delivery times, drivers and who delivers what.
@@ -101,7 +102,10 @@ export async function POST(req) {
   let eta = "";
   if (hasEta && b.eta) { const t = Date.parse(b.eta); if (!isFinite(t)) return json({ error: "bad_eta" }, 400); eta = new Date(t).toISOString(); }
   let tracked = true;
-  if (hasStatus) tracked = await applyStatus(id, b.status);
+  if (hasStatus) {
+    tracked = await applyStatus(id, b.status);
+    try { await stockOnStatus(id, b.status); } catch (e) { console.error("stock.status_failed", id, e && e.message); }
+  }
   if (hasEta) {
     await setEta(id, eta);
     let doc = null, changedEta = false;
