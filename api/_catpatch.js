@@ -5,16 +5,16 @@
 // Products listed with "add" are created if the catalogue doesn't have them. Stock is never touched.
 // Raise v to apply a new list once more.
 export default {
-v: 3,
+v: 4,
 // Placeholder stock until the real stock is uploaded: once (when pv goes past 2), every product with no stock
 // or 0 gets this quantity, so all products can be ordered. A stock upload replaces it as usual.
 fillStock: { v: 3, s: 20 },
 items: [
-  {"id": "100109", "p": 15, "dc": 25, "src": "Burnshield 2026"},
+  {"id": "100109", "p": 15, "dc": 25, "im": "/img/bs-100109.jpg", "imOld": "/img/p34.jpg", "src": "Burnshield 2026"},
   {"id": "550004", "p": 1.08, "dc": 25, "ob": 20, "of": 10, "src": "Burnshield 2026"},
   {"id": "550010", "p": 3.74, "dc": 25, "ob": 5, "of": 2, "src": "Burnshield 2026"},
   {"id": "550009", "p": 6.7, "dc": 25, "ob": 5, "of": 2, "src": "Burnshield 2026"},
-  {"id": "550000", "p": 9.52, "dc": 25, "ob": 5, "of": 2, "src": "Burnshield 2026"},
+  {"id": "550000", "p": 9.52, "dc": 25, "ob": 5, "of": 2, "im": "/img/bs-550000.jpg", "imOld": "/img/p31.jpg", "src": "Burnshield 2026"},
   {"id": "550003", "p": 13.88, "dc": 25, "ob": 5, "of": 2, "src": "Burnshield 2026"},
   {"id": "901111", "p": 5.87, "dc": 25, "im": "/img/bs-901111.jpg", "src": "Burnshield 2026"},
   {"id": "900906", "p": 16.68, "dc": 25, "im": "/img/bs-900906.jpg", "src": "Burnshield 2026"},

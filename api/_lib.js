@@ -151,7 +151,7 @@ export function applyPatch(data) {
         it = { id: x.id, k: k < 0 ? 0 : k, n: x.add.n, a: x.add.a || "", d: "", ad: "", p: 0, s: null, off: 0, im: "" };
         data.items.push(it); byId.set(x.id, it);
       }
-      if (!it.im && x.im) it.im = x.im;
+      if (x.im && (!it.im || (x.imOld && it.im === x.imOld))) it.im = x.im;
       if (!(it.p > 0) && x.p > 0) {
         it.p = x.p;
         if (!it.dc && !it.ob) { if (x.dc) it.dc = x.dc; if (x.ob && x.of) { it.ob = x.ob; it.of = x.of; } }
