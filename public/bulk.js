@@ -2,7 +2,7 @@
    Download all products as Excel (.xlsx) or CSV, edit Price, Stock and Online, upload it back,
    check the preview, apply, then "Publish changes" as usual. No outside library: the .xlsx is a small zip
    of XML written and read here. Uses helpers from admin.js ($, esc, W, toast, state, render). */
-const BK_HEAD = ["Ref", "Name", "Name (Arabic)", "Category", "Price ($)", "Stock", "Online (yes/no)", "Discount (%)", "Offer buy", "Offer free", "Choose one (yes/no)"];
+const BK_HEAD = ["Ref", "Name", "Name (Arabic)", "Category", "Price ($)", "Stock", "Online (yes/no)", "Discount (%)", "Offer buy", "Offer free"];
 
 /* ---------- zip (stored on write; stored or deflated on read) ---------- */
 const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
@@ -50,7 +50,7 @@ async function unzip(buf) {
 const xe = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const colL = (i) => { let s = ""; i++; while (i) { const m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); } return s; };
 function bkRows() {
-  return W.items.map((i) => [i.id, i.n, i.a || "", (W.cats[i.k] || {}).n || "", i.p || 0, i.s == null ? "" : i.s, i.off ? "no" : "yes", i.dc || "", i.ob || "", i.of || "", i.xo ? "yes" : ""]);
+  return W.items.map((i) => [i.id, i.n, i.a || "", (W.cats[i.k] || {}).n || "", i.p || 0, i.s == null ? "" : i.s, i.off ? "no" : "yes", i.dc || "", i.ob || "", i.of || ""]);
 }
 function bkXlsx() {
   const rows = [BK_HEAD, ...bkRows()];
@@ -130,7 +130,7 @@ function bkPlan(rows) {
     if (dc > 0 && dc < 1 && C.dc >= 0 && !/%/.test(String(r[C.dc]))) dc = dc * 100; // Excel percentage cells arrive as 0.25
     if (!isFinite(dc) || dc < 0 || dc >= 100) return `Discount "${r[C.dc]}" should be a percentage like 25`;
     if (!isFinite(ob) || !isFinite(of) || ob < 0 || of < 0 || Math.floor(ob) !== ob || Math.floor(of) !== of || (ob > 0) !== (of > 0)) return 'The offer needs two whole numbers, "Offer buy" and "Offer free" (for 5+2: 5 and 2), or both empty';
-    return { dc: Math.round(dc * 100) / 100, ob, of, xo: dc > 0 && ob > 0 && yes(C.xo >= 0 ? r[C.xo] : "") ? 1 : 0 };
+    return { dc: Math.round(dc * 100) / 100, ob, of, xo: dc > 0 && ob > 0 ? 1 : 0 }; // discount OR free goods, always
   };
   const byId = new Map(W.items.map((i) => [i.id, i])), seen = new Set(), changes = [], adds = [], errors = []; let same = 0;
   const catIx = (name) => { const t = String(name ?? "").trim().toLowerCase(); return t ? W.cats.findIndex((c) => c.n.toLowerCase() === t || (c.a || "").trim().toLowerCase() === t) : -1; };
@@ -179,10 +179,10 @@ function bkPlan(rows) {
       const pm = promo(r);
       if (typeof pm === "string") bad = pm;
       else {
-        const was = { dc: it.dc || 0, ob: it.ob || 0, of: it.of || 0, xo: it.xo ? 1 : 0 };
+        const was = { dc: it.dc || 0, ob: it.ob || 0, of: it.of || 0, xo: it.dc && it.ob ? 1 : 0 };
         if (C.dc < 0) pm.dc = was.dc;
         if (C.ob < 0) { pm.ob = was.ob; pm.of = was.of; }
-        pm.xo = pm.dc && pm.ob ? (C.xo >= 0 ? pm.xo : was.xo) : 0;
+        pm.xo = pm.dc && pm.ob ? 1 : 0;
         if (JSON.stringify(pm) !== JSON.stringify(was)) ch.pm = [was, pm];
       }
     }

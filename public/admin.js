@@ -149,7 +149,7 @@ function renderProducts() {
 <select id="fs" aria-label="Status"><option value="all">All products</option><option value="on">Online</option><option value="off">Offline</option><option value="out">Out of stock</option><option value="low">Low stock</option><option value="none">No stock entered</option></select>
 <button class="btn pri" id="new">+ New product</button></div>
 <div class="bar bulk"><b class="sm">Bulk stock and prices:</b><button class="btn" id="bkx">⬇ Download Excel</button><button class="btn" id="bkc">⬇ CSV</button><label class="btn">⬆ Upload filled file<input type="file" id="bkf" accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden></label><span class="mu sm">Edit the Price, Stock and Online columns, upload, check, then publish. Rows with a new Ref and a Name are added as new products.</span></div>
-<div class="tw"><table><thead><tr><th></th><th>Ref</th><th>Name</th><th>Category</th><th>Price ($)</th><th title="Client discount on the price">Discount (%)</th><th title="Buy this many, get that many free">Offer: buy + free</th><th title="The client chooses either the discount or the free goods">Choose one</th><th>Stock</th><th>Online</th><th></th></tr></thead><tbody id="rows"></tbody></table></div>
+<div class="tw"><table><thead><tr><th></th><th>Ref</th><th>Name</th><th>Category</th><th>Price ($)</th><th title="Client discount on the price">Discount (%)</th><th title="Buy this many, get that many free. With a discount too, the client chooses one of the two.">Offer: buy + free</th><th>Stock</th><th>Online</th><th></th></tr></thead><tbody id="rows"></tbody></table></div>
 <div class="pg" id="pg"></div>`;
     el.dataset.ready = 1;
     $("fq").oninput = (e) => { F.q = e.target.value; F.pg = 0; rows(); };
@@ -167,8 +167,7 @@ function renderProducts() {
         const v = Math.floor(+e.target.value); i[f] = isFinite(v) && v > 0 && v <= 999 ? v : 0;
         if (!i.ob) drop("ob"); if (!i.of) drop("of");
       }
-      if (f === "xo") { if (e.target.checked) i.xo = 1; else drop("xo"); }
-      if (!(i.dc && i.ob && i.of)) drop("xo");
+      if (i.dc && i.ob && i.of) i.xo = 1; else drop("xo"); // discount OR free goods, never both
       rows(); state();
     });
     $("rows").addEventListener("click", (e) => { const b = e.target.closest("button[data-edit]"); if (b) edit(b.dataset.edit); });
@@ -185,8 +184,8 @@ function rows() {
   $("rows").innerHTML = it.slice(F.pg * PER, F.pg * PER + PER).map((i) => {
     const c = W.cats[i.k] || { n: "?", e: "📦" }, chg = snap(live(i.id) || {}) !== snap(i);
     const pill = noStock(i) ? '<span class="pill out" title="No stock number entered, so customers see Out of stock.">Not set</span>' : isOut(i) ? '<span class="pill out">Out</span>' : isLow(i) ? '<span class="pill low">Low</span>' : "";
-    return `<tr data-id="${esc(i.id)}" class="${i.off ? "off" : ""}${chg ? " chg" : ""}"><td class="th">${i.im ? `<img src="${esc(i.im)}" alt="" loading="lazy">` : `<span>${c.e}</span>`}</td><td><span class="ref">${esc(i.id)}</span></td><td>${esc(i.n)}<small>${esc(i.a || "")}</small></td><td>${esc(c.n)}</td><td><input class="n" type="number" min="0" step="0.01" inputmode="decimal" value="${i.p || 0}" data-f="p" aria-label="Price of ${esc(i.id)}">${i.dc && i.p ? `<small class="mu" title="Price the client pays">Client pays $${(Math.round(i.p * (100 - i.dc)) / 100).toFixed(2)}</small>` : ""}</td><td><input class="n s" type="number" min="0" max="90" step="0.5" inputmode="decimal" placeholder="—" value="${i.dc || ""}" data-f="dc" aria-label="Discount of ${esc(i.id)}"></td><td><div class="row nw"><input class="n s" type="number" min="0" max="999" step="1" inputmode="numeric" placeholder="—" value="${i.ob || ""}" data-f="ob" aria-label="Offer buy quantity of ${esc(i.id)}"><span class="mu">+</span><input class="n s" type="number" min="0" max="999" step="1" inputmode="numeric" placeholder="—" value="${i.of || ""}" data-f="of" aria-label="Offer free quantity of ${esc(i.id)}"></div></td><td><input type="checkbox" data-f="xo" ${i.xo ? "checked" : ""} ${i.dc && i.ob ? "" : "disabled"} title="${i.dc && i.ob ? "Ticked: the client picks the discount or the free goods. Not ticked: they get both." : "Needs both a discount and an offer"}" aria-label="${esc(i.id)}: client chooses one"></td><td><div class="row"><input class="n" type="number" min="0" step="1" inputmode="numeric" placeholder="—" value="${i.s == null ? "" : i.s}" data-f="s" aria-label="Stock of ${esc(i.id)}">${pill}</div></td><td><label class="sw"><input type="checkbox" data-f="on" ${i.off ? "" : "checked"} aria-label="${esc(i.id)} online"><i></i></label></td><td><button class="btn" data-edit="${esc(i.id)}">Edit</button></td></tr>`;
-  }).join("") || `<tr><td colspan="11" class="mu">No products match.</td></tr>`;
+    return `<tr data-id="${esc(i.id)}" class="${i.off ? "off" : ""}${chg ? " chg" : ""}"><td class="th">${i.im ? `<img src="${esc(i.im)}" alt="" loading="lazy">` : `<span>${c.e}</span>`}</td><td><span class="ref">${esc(i.id)}</span></td><td>${esc(i.n)}<small>${esc(i.a || "")}</small></td><td>${esc(c.n)}</td><td><input class="n" type="number" min="0" step="0.01" inputmode="decimal" value="${i.p || 0}" data-f="p" aria-label="Price of ${esc(i.id)}">${i.dc && i.p ? `<small class="mu" title="Price the client pays">Client pays $${(Math.round(i.p * (100 - i.dc)) / 100).toFixed(2)}</small>` : ""}</td><td><input class="n s" type="number" min="0" max="90" step="0.5" inputmode="decimal" placeholder="—" value="${i.dc || ""}" data-f="dc" aria-label="Discount of ${esc(i.id)}"></td><td><div class="row nw"><input class="n s" type="number" min="0" max="999" step="1" inputmode="numeric" placeholder="—" value="${i.ob || ""}" data-f="ob" aria-label="Offer buy quantity of ${esc(i.id)}"><span class="mu">+</span><input class="n s" type="number" min="0" max="999" step="1" inputmode="numeric" placeholder="—" value="${i.of || ""}" data-f="of" aria-label="Offer free quantity of ${esc(i.id)}"></div></td><td><div class="row"><input class="n" type="number" min="0" step="1" inputmode="numeric" placeholder="—" value="${i.s == null ? "" : i.s}" data-f="s" aria-label="Stock of ${esc(i.id)}">${pill}</div></td><td><label class="sw"><input type="checkbox" data-f="on" ${i.off ? "" : "checked"} aria-label="${esc(i.id)} online"><i></i></label></td><td><button class="btn" data-edit="${esc(i.id)}">Edit</button></td></tr>`;
+  }).join("") || `<tr><td colspan="10" class="mu">No products match.</td></tr>`;
   $("pg").innerHTML = pages > 1 ? `<button class="btn" id="pp" ${F.pg < 1 ? "disabled" : ""}>‹ Previous</button><span class="mu sm">Page ${F.pg + 1} of ${pages} · ${it.length} products</span><button class="btn" id="pn" ${F.pg >= pages - 1 ? "disabled" : ""}>Next ›</button>` : `<span class="mu sm">${it.length} products · Empty stock shows as out of stock</span>`;
   if ($("pp")) { $("pp").onclick = () => { F.pg--; rows(); }; $("pn").onclick = () => { F.pg++; rows(); }; }
 }
@@ -215,8 +214,7 @@ function edit(id) {
 <label class="f">Client discount (%)<input id="e_dc" type="number" min="0" max="90" step="0.5" inputmode="decimal" placeholder="none" value="${E.dc || ""}"></label>
 <label class="f">Free goods offer: buy … get … free<span class="row"><input id="e_ob" type="number" min="0" max="999" step="1" inputmode="numeric" placeholder="buy" value="${E.ob || ""}" style="width:90px"> + <input id="e_of" type="number" min="0" max="999" step="1" inputmode="numeric" placeholder="free" value="${E.of || ""}" style="width:90px"></span></label>
 </div>
-<label class="row"><span class="sw"><input id="e_xo" type="checkbox" ${E.xo ? "checked" : ""}><i></i></span> Client chooses the discount <b>or</b> the free goods (they can't be combined)</label>
-<p class="mu sm" style="margin:0">Price is the public price. Clients pay the price less their discount. With a free goods offer, every "buy" units ordered get the "free" units added.</p>
+<p class="mu sm" style="margin:0">Price is the public price. Clients pay the price less their discount. With a free goods offer, every "buy" units ordered get the "free" units added. When a product has both, the client always chooses the discount <b>or</b> the free goods, never both.</p>
 <label class="row"><span class="sw"><input id="e_on" type="checkbox" ${E.off ? "" : "checked"}><i></i></span> Online (visible in the catalogue)</label>
 <p class="err" id="emsg" role="alert"></p>
 <div class="row"><button class="btn pri" id="eok">${ENEW ? "Add product" : "Save"}</button><button class="btn" id="ecx">Cancel</button><span class="sp"></span>${ENEW ? "" : '<button class="btn dng" id="edel">Delete product</button>'}</div>
@@ -248,7 +246,7 @@ function edit(id) {
     delete E.dc; delete E.ob; delete E.of; delete E.xo;
     if (dc > 0) E.dc = Math.round(dc * 100) / 100;
     if (ob > 0 && of > 0) { E.ob = ob; E.of = of; }
-    if (E.dc && E.ob && $("e_xo").checked) E.xo = 1;
+    if (E.dc && E.ob) E.xo = 1;
     Object.assign(E, { id: ref, k: +$("e_k").value, n, a: $("e_a").value.trim(), d: $("e_d").value.trim(), ad: $("e_ad").value.trim(), p: Math.round(p * 100) / 100, s: sv === "" ? null : Math.max(0, Math.floor(+sv) || 0), off: $("e_on").checked ? 0 : 1 });
     if (ENEW) W.items.unshift(E); else { const g = gi(E.id); ["dc", "ob", "of", "xo"].forEach((f) => delete g[f]); Object.assign(g, E); }
     close(); render(); toast(ENEW ? "Product added. Publish to make it live." : "Saved. Publish to make it live.");
