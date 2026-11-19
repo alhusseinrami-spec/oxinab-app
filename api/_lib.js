@@ -2,6 +2,7 @@
 import { createHmac, createHash, timingSafeEqual, randomBytes } from "node:crypto";
 import { put, list, del, head } from "@vercel/blob";
 import SEED from "./_seed.js";
+import PATCH from "./_catpatch.js";
 
 /* ---------- Home page slides (brands and offers) ----------
    Shown until an admin publishes their own. Each slide: im image, t/ta title EN/AR, s/sa line EN/AR, l/la small label EN/AR,
@@ -119,10 +120,11 @@ export async function listAll(prefix) {
   } while (cursor);
   return out;
 }
+const seedData = () => applyPatch(structuredClone(SEED));
 export async function loadCatalog() {
-  if (!blobReady()) return { data: SEED, version: "seed" };
+  if (!blobReady()) return { data: seedData(), version: "seed" };
   const all = await listAll("catalog/");
-  if (!all.length) return { data: SEED, version: "seed" };
+  if (!all.length) return { data: seedData(), version: "seed" };
   all.sort((a, b) => b.pathname.localeCompare(a.pathname));
   const r = await fetch(all[0].url, { cache: "no-store" });
   if (!r.ok) throw new Error("catalog_fetch_" + r.status);
@@ -131,8 +133,35 @@ export async function loadCatalog() {
 function fixup(data, version) {
   // A newer product list shipped in the code replaces the saved one once; the shop's settings are kept.
   if (!Array.isArray(data.banners)) data.banners = DEFAULT_BANNERS;
-  if ((data.seedv || 1) < (SEED.seedv || 1)) return { data: { ...SEED, set: { ...SEED.set, ...data.set }, banners: data.banners, deals: data.deals || [] }, version };
-  return { data, version };
+  if ((data.seedv || 1) < (SEED.seedv || 1)) data = { ...structuredClone(SEED), set: { ...SEED.set, ...data.set }, banners: data.banners, deals: data.deals || [] };
+  return { data: applyPatch(data), version };
+}
+/* Supplier catalogue prices, offers and photos (_catpatch.js), filled in where the catalogue has nothing yet.
+   It runs on every load until a publish carries pv; a publish from a copy opened before the patch has no pv,
+   so the patch fills the gaps again on the next load instead of being lost. Existing values are never replaced. */
+export function applyPatch(data) {
+  if (!data || !Array.isArray(data.items)) return data;
+  if ((data.pv || 0) < PATCH.v) {
+    const byId = new Map(data.items.map((i) => [i.id, i]));
+    for (const x of PATCH.items) {
+      let it = byId.get(x.id);
+      if (!it) {
+        if (!x.add || !Array.isArray(data.cats)) continue;
+        const k = data.cats.findIndex((c) => c.n.toLowerCase() === x.add.cat.toLowerCase());
+        it = { id: x.id, k: k < 0 ? 0 : k, n: x.add.n, a: x.add.a || "", d: "", ad: "", p: 0, s: null, off: 0, im: "" };
+        data.items.push(it); byId.set(x.id, it);
+      }
+      if (!it.im && x.im) it.im = x.im;
+      if (!(it.p > 0) && x.p > 0) {
+        it.p = x.p;
+        if (!it.dc && !it.ob) { if (x.dc) it.dc = x.dc; if (x.ob && x.of) { it.ob = x.ob; it.of = x.of; } }
+      }
+    }
+    data.pv = PATCH.v;
+  }
+  // The client always chooses the discount or the free goods, never both.
+  for (const i of data.items) { if (i.dc > 0 && i.ob > 0 && i.of > 0) i.xo = 1; else delete i.xo; }
+  return data;
 }
 /* The shop and new orders read the live catalogue from one fixed file, catalog-live.json, through the storage's cache.
    Listing files is a counted operation on the free plan (2,000 a month), so it is kept for the command center only.
@@ -141,7 +170,7 @@ const LIVE = "catalog-live.json";
 let liveUrl = null;
 const putLive = (data) => put(LIVE, JSON.stringify(data), { access: "public", addRandomSuffix: false, allowOverwrite: true, contentType: "application/json", cacheControlMaxAge: 60 });
 export async function loadCatalogFast() {
-  if (!blobReady()) return { data: SEED, version: "seed" };
+  if (!blobReady()) return { data: seedData(), version: "seed" };
   try {
     if (!liveUrl) liveUrl = (await head(LIVE)).url;
     const r = await fetch(liveUrl + "?v=" + Math.floor(Date.now() / 60000));
@@ -198,7 +227,7 @@ export function cleanCatalog(input) {
       s, off: i.off ? 1 : 0, im,
       ...(isFinite(dc) && dc > 0 && dc < 100 ? { dc: Math.round(dc * 100) / 100 } : {}),
       ...(offer ? { ob, of } : {}),
-      ...(offer && dc > 0 && dc < 100 && i.xo ? { xo: 1 } : {}),
+      ...(offer && dc > 0 && dc < 100 ? { xo: 1 } : {}), // discount OR free goods: the client always chooses one
     };
   });
   const banners = (Array.isArray(input.banners) ? input.banners : DEFAULT_BANNERS).slice(0, 12).map((b, n) => {
@@ -238,6 +267,7 @@ export function cleanCatalog(input) {
   return {
     v: 1,
     seedv: Math.max(Number(input.seedv) || 1, SEED.seedv || 1),
+    ...(Number(input.pv) > 0 ? { pv: Math.min(Math.floor(Number(input.pv)), PATCH.v) } : {}),
     set: {
       price: st.price ? 1 : 0,
       low: Math.max(0, Math.min(999, Math.floor(Number(st.low)) || 0)),

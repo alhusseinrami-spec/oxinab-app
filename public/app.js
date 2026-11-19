@@ -84,7 +84,7 @@ function all(){if(!D)return;promo();dealsDraw();chips();draw();drawCart();trkDra
 
 function load(d){
  D=d;CATS=d.cats;SHOW_PRICES=!!d.set.price;WA=d.set.wa||WA;LOW=d.set.low||0;
- P=d.items.filter(i=>!i.off&&CATS[i.k]).map(i=>({id:i.id,n:i.n,a:i.a,d:i.d,ad:i.ad,pr:Math.round((i.p||0)*(1-(i.dc||0)/100)*100)/100,rp:i.p||0,dc:i.dc||0,ob:i.ob||0,of:i.of||0,xo:i.xo&&i.dc&&i.ob?1:0,s:i.s==null?0:i.s,ci:i.k,im:i.im}));
+ P=d.items.filter(i=>!i.off&&CATS[i.k]).map(i=>({id:i.id,n:i.n,a:i.a,d:i.d,ad:i.ad,pr:Math.round((i.p||0)*(1-(i.dc||0)/100)*100)/100,rp:i.p||0,dc:i.dc||0,ob:i.ob||0,of:i.of||0,xo:i.dc&&i.ob?1:0,s:i.s==null?0:i.s,ci:i.k,im:i.im}));
  byId={};P.forEach(p=>byId[p.id]=p);DL={};(d.deals||[]).forEach(x=>{if(dealOn(x))DL[x.id]=x});cnt=CATS.map((c,i)=>P.filter(p=>p.ci===i).length);
  const c0=cart;cart={};
  try{const s=Object.keys(c0).length?c0:JSON.parse(localStorage.getItem('oxc')||'{}');for(const k in s){if((isD(k)?DL[k.slice(2)]&&dealOk(DL[k.slice(2)]):byId[k]&&!out(byId[k]))&&s[k]>0)cart[k]=s[k]}}catch(e){}

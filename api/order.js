@@ -38,8 +38,8 @@ export async function POST(req) {
     const p = byId.get(key);
     if (!(p && q > 0 && q <= 999)) return null;
     // p is the client's price (public price less the client discount); fq the free units the offer gives.
-    // When the two can't be combined (xo), the client chose one: "d" the discount (default) or "f" the free goods at the public price.
-    const xo = p.xo && p.dc && p.ob, o = xo ? (x.o === "f" ? "f" : "d") : "";
+    // The two are never combined: when a product has both, the client chose one: "d" the discount (default) or "f" the free goods at the public price.
+    const xo = p.dc && p.ob, o = xo ? (x.o === "f" ? "f" : "d") : "";
     const fq = o === "d" ? 0 : freeQty(p, q), price = o === "f" ? p.p || 0 : netPrice(p);
     return { id: p.id, n: p.n, q, p: price, ...(p.dc && o !== "f" ? { rp: p.p || 0, dc: p.dc } : {}), ...(fq ? { fq, ob: p.ob, of: p.of } : {}), ...(o ? { o } : {}) };
   }).filter(Boolean);
