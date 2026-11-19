@@ -102,16 +102,16 @@ async function priceOffer(o, client, old, free = true) {
     const it = byId.get(str(l.id, 24));
     if (it) {
       const b = Math.round(netPrice(it) * (1 - cdc / 100) * 100) / 100;
-      const ld = Number(l.ld), lp0 = it.p || 0;
+      const ld = Number(l.ld), lp0 = num(l.lp, 0, 1e7) > 0 ? num(l.lp, 0, 1e7) : it.p || 0;
       const p = !free ? b
         : l.ld !== undefined && l.ld !== "" && l.ld !== null && isFinite(ld) && lp0 > 0 ? Math.round(lp0 * (1 - Math.min(100, Math.max(0, ld)) / 100) * 100) / 100
         : l.p === "" || l.p === null || l.p === undefined ? b : num(l.p, 0, 1e7);
       const fq = it.ob && !it.xo ? freeQty(it, q) : 0, fr = free ? Math.floor(num(l.fr, 0, 99999)) : 0;
-      return { id: it.id, n: str(l.n, 160) || it.n, q, p, b, lp: it.p || 0, ...(fq ? { fq } : {}), ...(fr ? { fr } : {}) };
+      return { id: it.id, n: str(l.n, 160) || it.n, q, p, b, lp: lp0, ...(fq ? { fq } : {}), ...(fr ? { fr } : {}) };
     }
     if (!free) return null; // custom lines are priced by hand
     const p = num(l.p, 0, 1e7), fr = Math.floor(num(l.fr, 0, 99999));
-    return { id: str(l.id, 24), n: str(l.n, 160) || "Item", q, p, b: p, lp: p, ...(fr ? { fr } : {}) };
+    return { id: str(l.id, 24), n: str(l.n, 160) || "Item", q, p, b: p, lp: Math.max(p, num(l.lp, 0, 1e7)), ...(fr ? { fr } : {}) };
   }).filter(Boolean);
   if (!lines.length) throw new Error("no_lines");
   const sub = lines.reduce((s, l) => s + l.q * l.p, 0), base = lines.reduce((s, l) => s + (l.q + (l.fr || 0)) * l.b, 0);
