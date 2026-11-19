@@ -1,11 +1,11 @@
 // Prices, discounts, offers and photos from the supplier catalogues (Burnshield 2026, Biosynex January 2026,
-// Tynor 2025 price list, Tynor product sheet).
+// Tynor 2025 price list, Tynor product sheet, Relaxsan sheet).
 // Applied once to the live catalogue when it loads (see applyPatch in _lib.js), and only to what is empty:
 // a photo goes on a product that has none, and the price, discount and offer only on a product with no price yet.
 // Products listed with "add" are created if the catalogue doesn't have them. Stock is never touched.
 // Raise v to apply a new list once more.
 export default {
-v: 5,
+v: 6,
 // Placeholder stock until the real stock is uploaded: once (when pv goes past 2), every product with no stock
 // or 0 gets this quantity, so all products can be ordered. A stock upload replaces it as usual.
 fillStock: { v: 3, s: 20 },
@@ -248,5 +248,6 @@ items: [
   {"id": "192", "im": "/img/ty-i92.jpg", "src": "Tynor product sheet"},
   {"id": "cm", "im": "/img/ty-l35.jpg", "src": "Tynor product sheet"},
   {"id": "10DISERTRA", "im": "/img/ty-g25.jpg", "src": "Tynor product sheet"},
+  {"id": "ART6200", "p": 60, "im": "/img/rx-art6200.jpg", "src": "Relaxsan sheet"},
 ],
 };
