@@ -1,11 +1,11 @@
 // Prices, discounts, offers and photos from the supplier catalogues (Burnshield 2026, Biosynex January 2026,
-// Tynor 2025 price list, Tynor product sheet, Relaxsan sheet).
+// Tynor 2025 price list, Tynor product sheet, Relaxsan sheet, Medora Care photos).
 // Applied once to the live catalogue when it loads (see applyPatch in _lib.js), and only to what is empty:
 // a photo goes on a product that has none, and the price, discount and offer only on a product with no price yet.
 // Products listed with "add" are created if the catalogue doesn't have them. Stock is never touched.
 // Raise v to apply a new list once more.
 export default {
-v: 6,
+v: 7,
 // Placeholder stock until the real stock is uploaded: once (when pv goes past 2), every product with no stock
 // or 0 gets this quantity, so all products can be ordered. A stock upload replaces it as usual.
 fillStock: { v: 3, s: 20 },
@@ -249,5 +249,17 @@ items: [
   {"id": "cm", "im": "/img/ty-l35.jpg", "src": "Tynor product sheet"},
   {"id": "10DISERTRA", "im": "/img/ty-g25.jpg", "src": "Tynor product sheet"},
   {"id": "ART6200", "p": 60, "im": "/img/rx-art6200.jpg", "src": "Relaxsan sheet"},
+  {"id": "OXI30005", "im": "/img/md-emergency-blanket.jpg", "src": "Medora Care photos"},
+  {"id": "OXI30004", "im": "/img/md-conforming-bandage.jpg", "src": "Medora Care photos"},
+  {"id": "6DIAW4", "im": "/img/md-guedel-airway.jpg", "src": "Medora Care photos"},
+  {"id": "03.0012", "im": "/img/md-nitrile-gloves.jpg", "src": "Medora Care photos"},
+  {"id": "03.0013", "im": "/img/md-nitrile-gloves.jpg", "src": "Medora Care photos"},
+  {"id": "03.0014", "im": "/img/md-nitrile-gloves.jpg", "src": "Medora Care photos"},
+  {"id": "03.0015", "im": "/img/md-nitrile-gloves.jpg", "src": "Medora Care photos"},
+  {"id": "05.0085", "im": "/img/md-surgical-blades.jpg", "src": "Medora Care photos"},
+  {"id": "6DIMSY1", "im": "/img/md-insulin-syringe.jpg", "src": "Medora Care photos"},
+  {"id": "20.0003", "im": "/img/md-exam-roll-paper.jpg", "src": "Medora Care photos"},
+  {"id": "20.0002", "im": "/img/md-exam-roll-paper.jpg", "src": "Medora Care photos"},
+  {"id": "3MCS3LS", "im": "/img/md-tripod-cane.jpg", "src": "Medora Care photos"},
 ],
 };
