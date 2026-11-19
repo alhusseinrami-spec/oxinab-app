@@ -58,6 +58,8 @@ const catItem = (id) => CAT && CAT.items.find((i) => i.id === id);
 const netP = (it) => Math.round((it.p || 0) * (1 - (it.dc || 0) / 100) * 100) / 100;
 const client = (id) => DOC.cl.find((c) => c.id === id);
 const openVisit = () => DOC.vs.find((v) => !v.out);
+const lineDisc = (l, lp) => (lp > 0 && l.p < lp ? Math.round((1 - l.p / lp) * 1000) / 10 : 0); // % off the list price
+const freeOf = (l) => (l.fq || 0) + (l.fr || 0);
 const offerTotal = (o) => { const sub = o.lines.reduce((s, l) => s + l.q * l.p, 0), b = sub - Math.min(o.disc || 0, sub) + (o.ship || 0); return b + b * (o.vat || 0) / 100; };
 const setDoc = (d) => { if (d) DOC = d; };
 
@@ -331,7 +333,7 @@ function editOffer(id, clId) {
     const items = CAT ? CAT.items.filter((i) => !i.off) : [];
     const ql = q.trim().toLowerCase();
     const hits = ql ? items.filter((i) => (i.id + " " + i.n + " " + (i.a || "")).toLowerCase().includes(ql)).slice(0, 25) : [];
-    const sub = O.lines.reduce((a, l) => a + l.q * (l.p || 0), 0), base = O.lines.reduce((a, l) => { const it = catItem(l.id); return a + l.q * (it ? std(it) : l.p || 0); }, 0);
+    const sub = O.lines.reduce((a, l) => a + l.q * (l.p || 0), 0), base = O.lines.reduce((a, l) => { const it = catItem(l.id); return a + (l.q + (+l.fr || 0)) * (it ? std(it) : l.p || 0); }, 0);
     const disc = Math.min(O.disc || 0, sub), extra = base > 0 ? Math.max(0, Math.round((1 - (sub - disc) / base) * 1000) / 10) : 0;
     const over = can("limit") && extra > (ME.mx || 0) + 0.05;
     const tb = sub - disc + (+O.ship || 0), tot = tb + tb * (+O.vat || 0) / 100;
@@ -339,9 +341,13 @@ function editOffer(id, clId) {
 <label>Add products</label><input type="search" data-q2 placeholder="${CAT ? "Type a name or ref" : "Loading products…"}" value="${esc(q)}" autocomplete="off">
 ${hits.length ? `<div class="pick">${hits.map((i) => `<button data-add="${esc(i.id)}">${i.im ? `<img src="${esc(i.im)}" alt="" loading="lazy">` : '<span class="ph"></span>'}<span><b>${esc(i.n)}</b><span>${esc(i.id)} · ${i.p ? usd(std(i)) : "no price"}${i.s === 0 ? " · out of stock" : ""}${i.ob && i.of ? ` · offer ${i.ob}+${i.of}` : ""}</span></span></button>`).join("")}</div>` : ql ? '<p class="mu sm">No product matches.</p>' : ""}
 ${can("prices") ? `<button class="btn" data-custom style="margin-top:8px">+ Line not in the catalogue</button>` : ""}</div>
-<div class="card">${O.lines.length ? O.lines.map((l, k) => { const it = catItem(l.id), sp = it ? std(it) : null, off = sp && l.p < sp ? Math.round((1 - l.p / sp) * 1000) / 10 : 0;
-      return `<div class="ln" data-k="${k}"><div class="nm">${it || !can("prices") ? esc(l.n) : `<input data-l="n" value="${esc(l.n)}" placeholder="Description" maxlength="160">`}<small>${esc(l.id || "custom")}${sp !== null ? ` · standard ${usd(sp)}` : ""}${off ? ` · <b style="color:var(--warn)">${off}% off</b>` : ""}${it && it.ob && !it.xo && Math.floor(l.q / it.ob) * it.of ? ` · +${Math.floor(l.q / it.ob) * it.of} free` : ""}</small></div><div class="r num"><b>${usd(l.q * (l.p || 0))}</b></div>
-<div class="ctl"><input type="number" inputmode="numeric" min="1" step="1" data-l="q" value="${l.q}" aria-label="Quantity"><input type="number" inputmode="decimal" min="0" step="0.01" data-l="p" value="${l.p || ""}" placeholder="Unit price" aria-label="Unit price"${can("prices") ? "" : " disabled"}><button class="x" data-rm aria-label="Remove">✕</button></div></div>`; }).join("") : '<p class="mu sm" style="margin:0">No products yet. Search above to add.</p>'}</div>
+<div class="card">${O.lines.length ? O.lines.map((l, k) => {
+      const it = catItem(l.id), sp = it ? std(it) : null, lp = it ? it.p || 0 : 0, ld = lineDisc(l, lp);
+      const fq = it && it.ob && !it.xo ? Math.floor(l.q / it.ob) * it.of : 0, out = l.q + fq + (+l.fr || 0), short = it && it.s !== null && it.s !== undefined && out > it.s;
+      const P = can("prices") ? "" : " disabled";
+      return `<div class="ln" data-k="${k}"><div class="nm">${it || !can("prices") ? esc(l.n) : `<input data-l="n" value="${esc(l.n)}" placeholder="Description" maxlength="160">`}<small>${esc(l.id || "custom")}${it ? ` · list ${usd(lp)}` : ""}${sp !== null && sp !== lp ? ` · client ${usd(sp)}` : ""}${it && it.s !== null && it.s !== undefined ? ` · stock ${it.s}` : ""}${fq ? ` · <b>+${fq} free (offer ${it.ob}+${it.of})</b>` : ""}</small></div><div class="r num"><b>${usd(l.q * (l.p || 0))}</b></div>
+<div class="ctl"><label>Qty<input type="number" inputmode="numeric" min="1" step="1" data-l="q" value="${l.q}"></label><label>Price $<input type="number" inputmode="decimal" min="0" step="0.01" data-l="p" value="${l.p || ""}" placeholder="0.00"${P}></label><label>Disc %<input type="number" inputmode="decimal" min="0" max="100" step="0.5" data-l="ld" value="${ld || ""}" placeholder="0"${it ? P : " disabled"}></label><label>Free<input type="number" inputmode="numeric" min="0" step="1" data-l="fr" value="${+l.fr || ""}" placeholder="0"${P}></label><button class="x" data-rm aria-label="Remove">✕</button></div>
+${short ? `<div class="warnbox" style="margin-top:6px">⚠ ${out} units go out (${l.q} sold + ${out - l.q} free) but only ${it.s} in stock.</div>` : ""}</div>`; }).join("") : '<p class="mu sm" style="margin:0">No products yet. Search above to add.</p>'}${O.lines.length ? '<p class="mu sm" style="margin:8px 0 0">Disc % is off the list price. Free items are given on top and come out of stock with the order.</p>' : ""}</div>
 <div class="card"><div class="g2">${can("prices") ? `<label>Extra discount $<input type="number" min="0" step="0.01" data-o="disc" value="${O.disc || ""}" placeholder="0"></label>` : ""}<label>Delivery $<input type="number" min="0" step="0.01" data-o="ship" value="${O.ship || ""}" placeholder="0"></label><label>VAT %<input type="number" min="0" max="50" step="0.01" data-o="vat" value="${O.vat || ""}" placeholder="0"></label><label>Valid for (days)<input type="number" min="1" max="365" data-o="valid" value="${O.valid || 7}"></label></div>
 <label>Note for the client<textarea data-o="note" rows="2" maxlength="600" placeholder="e.g. Delivery within 2 working days">${esc(O.note)}</textarea></label>
 <div class="tots num"><div><span>Subtotal</span><b>${usd(sub)}</b></div>${disc ? `<div><span>Discount</span><b>−${usd(disc)}</b></div>` : ""}${+O.ship ? `<div><span>Delivery</span><b>${usd(+O.ship)}</b></div>` : ""}${+O.vat ? `<div><span>VAT ${+O.vat}%</span><b>${usd(tb * (+O.vat) / 100)}</b></div>` : ""}<div class="g"><span>Total</span><b>${usd(tot)}</b></div>${extra ? `<div class="sm mu"><span>Below standard prices</span><span>${extra}%</span></div>` : ""}</div>
@@ -352,11 +358,19 @@ ${over ? `<div class="warnbox">⚠ This is ${extra}% below standard prices; your
     const qi = B.querySelector("[data-q2]"); qi.oninput = () => { q = qi.value; s.draw(); const n = s.body.querySelector("[data-q2]"); n.focus(); n.setSelectionRange(q.length, q.length); };
     const pk = B.querySelector(".pick"); if (pk) pk.onclick = (e) => { const b = e.target.closest("[data-add]"); if (!b) return; const it = catItem(b.dataset.add), have = O.lines.find((l) => l.id === it.id); if (have) have.q++; else O.lines.push({ id: it.id, n: it.n, q: 1, p: std(it) }); q = ""; s.draw(); toast(`Added ${it.n}`); };
     const cu = B.querySelector("[data-custom]"); if (cu) cu.onclick = () => { O.lines.push({ id: "", n: "", q: 1, p: 0 }); s.draw(); };
-    B.addEventListener("change", (e) => {
+    B.onchange = (e) => {
       const t = e.target, ln = t.closest(".ln");
-      if (ln && t.dataset.l) { const l = O.lines[+ln.dataset.k]; l[t.dataset.l] = t.dataset.l === "n" ? t.value : t.dataset.l === "q" ? Math.max(1, Math.floor(+t.value) || 1) : Math.max(0, +t.value || 0); s.draw(); }
+      if (ln && t.dataset.l) {
+        const l = O.lines[+ln.dataset.k], k = t.dataset.l, it = catItem(l.id);
+        if (k === "n") l.n = t.value;
+        else if (k === "q") l.q = Math.max(1, Math.floor(+t.value) || 1);
+        else if (k === "fr") l.fr = Math.max(0, Math.floor(+t.value) || 0);
+        else if (k === "ld") { const d = Math.min(100, Math.max(0, +t.value || 0)); if (it && it.p) l.p = Math.round(it.p * (1 - d / 100) * 100) / 100; }
+        else l.p = Math.max(0, +t.value || 0);
+        s.draw();
+      }
       else if (t.dataset.o) { O[t.dataset.o] = t.dataset.o === "note" ? t.value : Math.max(0, +t.value || 0); if (t.dataset.o !== "note") s.draw(); }
-    });
+    };
     B.querySelectorAll("[data-rm]").forEach((b) => (b.onclick = () => { O.lines.splice(+b.closest(".ln").dataset.k, 1); s.draw(); }));
     B.querySelector("[data-save]").onclick = async (e) => {
       O.note = B.querySelector('[data-o="note"]').value;
@@ -378,7 +392,7 @@ function openOffer(id) {
     s.body.innerHTML = `<div class="card"><div class="row"><b style="flex:1"><a href="#" data-open="${c.id}">${esc(c.n)}</a></b><span class="pill ${o.st === "won" ? "ok" : o.st === "lost" ? "bad" : ""}">${OST[o.st]}</span></div>
 <p class="mu sm" style="margin:2px 0 0">Made ${dshort(o.at)}${o.up !== o.at ? ` · changed ${dshort(o.up)}` : ""} · valid ${o.valid} days${o.pf ? ` · proforma ${esc(o.pf)}` : ""}${o.ord ? ` · order #${esc(o.ord)}` : ""}</p>
 ${o.ap === "wait" ? `<div class="warnbox">⏳ ${o.extra}% below standard prices (your limit ${ME.mx || 0}%). Waiting for approval in the Command Center before a proforma or an order.</div>` : o.ap === "no" ? `<div class="badbox">✕ The discount was not approved. Edit the prices and save to ask again.</div>` : o.ap === "ok" ? `<div class="okbox">✓ Discount approved.</div>` : ""}
-${o.lines.map((l) => `<div class="ln"><div class="nm">${esc(l.n)}<small>${esc(l.id || "custom")} · ${l.q} × ${usd(l.p)}${l.fq ? ` · +${l.fq} free` : ""}</small></div><div class="r num"><b>${usd(l.q * l.p)}</b></div></div>`).join("")}
+${o.lines.map((l) => `<div class="ln"><div class="nm">${esc(l.n)}<small>${esc(l.id || "custom")} · ${l.q} × ${usd(l.p)}${lineDisc(l, l.lp) ? ` (${lineDisc(l, l.lp)}% off ${usd(l.lp)})` : ""}${freeOf(l) ? ` · <b>+${freeOf(l)} free</b>` : ""}</small></div><div class="r num"><b>${usd(l.q * l.p)}</b></div></div>`).join("")}
 <div class="tots num"><div><span>Subtotal</span><b>${usd(tb)}</b></div>${o.disc ? `<div><span>Discount</span><b>−${usd(o.disc)}</b></div>` : ""}${o.ship ? `<div><span>Delivery</span><b>${usd(o.ship)}</b></div>` : ""}${o.vat ? `<div><span>VAT ${o.vat}%</span><b>${usd((tb - o.disc + o.ship) * o.vat / 100)}</b></div>` : ""}<div class="g"><span>Total</span><b>${usd(offerTotal(o))}</b></div></div>
 ${o.note ? `<p class="sm" style="margin:8px 0 0">📝 ${esc(o.note)}</p>` : ""}</div>
 <div class="card">
@@ -401,7 +415,7 @@ ${o.ord ? `<div class="okbox">✓ Ordered as #${esc(o.ord)}. It is in the Comman
       catch (err) { fail(err, "Could not place the order. Try again."); s.draw(); }
     });
     on("[data-wa]", () => {
-      const msg = `Hello${c.co ? " " + c.co : c.n ? " " + c.n : ""}, here is our offer:\n` + o.lines.map((l) => `• ${l.q} × ${l.n} — ${usd(l.p)}${l.fq ? ` (+${l.fq} free)` : ""}`).join("\n")
+      const msg = `Hello${c.co ? " " + c.co : c.n ? " " + c.n : ""}, here is our offer:\n` + o.lines.map((l) => `• ${l.q} × ${l.n} — ${usd(l.p)}${lineDisc(l, l.lp) ? ` (${lineDisc(l, l.lp)}% off ${usd(l.lp)})` : ""}${freeOf(l) ? ` + ${freeOf(l)} free` : ""}`).join("\n")
         + `${o.disc ? `\nDiscount: −${usd(o.disc)}` : ""}${o.ship ? `\nDelivery: ${usd(o.ship)}` : ""}\nTotal: ${usd(offerTotal(o))}\nValid for ${o.valid} days.${o.note ? "\n" + o.note : ""}\n\n${ME.n}, Oxinab`;
       window.open(`https://wa.me/${c.tel ? intl(c.tel) : ""}?text=${encodeURIComponent(msg)}`, "_blank", "noopener");
     });

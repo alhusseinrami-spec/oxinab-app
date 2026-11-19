@@ -108,14 +108,19 @@ function pfPages(d) {
 <div class="pp"><div><h4>From</h4><b>${esc(c.co)}</b>${c.addr ? `<p>${nl(c.addr)}</p>` : ""}${c.tel ? `<p dir="ltr">${esc(c.tel)}</p>` : ""}${c.email ? `<p>${esc(c.email)}</p>` : ""}${c.web ? `<p>${esc(c.web)}</p>` : ""}${c.vatno ? `<p>VAT no. ${esc(c.vatno)}</p>` : ""}</div>
 <div><h4>Bill to</h4><b>${esc(d.client.name || "Client")}</b>${d.client.co ? `<p>${esc(d.client.co)}</p>` : ""}${d.client.phone ? `<p dir="ltr">${esc(d.client.phone)}</p>` : ""}${d.client.addr ? `<p>${esc(d.client.addr)}</p>` : ""}</div></div>`
     : `<header class="ph sm"><img src="/logo.jpg" alt=""><p><b>${esc(d.no)}</b> · continued</p></header>`;
-  const thead = `<thead><tr><th>#</th><th>Ref</th><th>Description</th><th class="r">Qty</th><th class="r">Unit price</th><th class="r">Amount</th></tr></thead>`;
+  // With selling prices (proformas from the sales app): selling price, discount, then the client's net price.
+  const sp = d.lines.some((l) => l.lp > 0);
+  const thead = sp ? `<thead><tr><th>#</th><th>Ref</th><th>Description</th><th class="r">Qty</th><th class="r">Selling price</th><th class="r">Disc.</th><th class="r">Net price</th><th class="r">Amount</th></tr></thead>`
+    : `<thead><tr><th>#</th><th>Ref</th><th>Description</th><th class="r">Qty</th><th class="r">Unit price</th><th class="r">Amount</th></tr></thead>`;
   const pages = [];
   const page = (first) => { const p = document.createElement("section"); p.className = "pfp"; p.innerHTML = `<div class="pin">${head(first)}<table class="it">${thead}<tbody></tbody></table><div class="tail"></div></div><footer class="pfo"><span>${esc(c.co)}${c.tel ? " · " + esc(c.tel) : ""}${c.web ? " · " + esc(c.web) : ""}</span><span class="pg"></span></footer>`; host.appendChild(p); pages.push(p); return p; };
   const full = (p) => p.querySelector(".pin").scrollHeight > p.querySelector(".pin").clientHeight;
   let p = page(true);
   d.lines.forEach((l, k) => {
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${k + 1}</td><td class="ref">${esc(l.id)}</td><td>${esc(l.n)}</td><td class="r">${l.q}</td><td class="r">${l.p ? money2(l.p) : "–"}</td><td class="r">${money2(l.q * l.p)}</td>`;
+    tr.innerHTML = sp
+      ? `<td>${k + 1}</td><td class="ref">${esc(l.id)}</td><td>${esc(l.n)}</td><td class="r">${l.q}</td><td class="r">${l.lp ? money2(l.lp) : "–"}</td><td class="r">${l.free ? "Free" : l.dc ? l.dc + "%" : "–"}</td><td class="r">${l.free ? money2(0) : l.p ? money2(l.p) : "–"}</td><td class="r">${money2(l.q * l.p)}</td>`
+      : `<td>${k + 1}</td><td class="ref">${esc(l.id)}</td><td>${esc(l.n)}</td><td class="r">${l.q}</td><td class="r">${l.p ? money2(l.p) : "–"}</td><td class="r">${money2(l.q * l.p)}</td>`;
     p.querySelector(".it tbody").appendChild(tr);
     if (full(p) && p.querySelector(".it tbody").children.length > 1) { tr.remove(); p = page(false); p.querySelector(".it tbody").appendChild(tr); }
   });
