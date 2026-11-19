@@ -38,7 +38,7 @@ function saveDoc(id, d) {
 }
 
 const str = (v, max) => (typeof v === "string" ? v.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "").trim().slice(0, max) : "");
-const num = (v, lo, hi, d = 0) => { const n = Number(v); return isFinite(n) ? Math.min(hi, Math.max(lo, Math.round(n * 100) / 100)) : d; };
+const num = (v, lo, hi, d = 0) => { const n = Number(typeof v === "string" ? v.trim().replace(",", ".") : v); return isFinite(n) ? Math.min(hi, Math.max(lo, Math.round(n * 100) / 100)) : d; };
 const nid = () => randomBytes(6).toString("base64url").replace(/[-_]/g, "x");
 const day = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(v || "") ? v : "");
 const coord = (v, lim) => { const n = Number(v); return v !== null && v !== "" && isFinite(n) && Math.abs(n) <= lim ? Math.round(n * 1e5) / 1e5 : null; };
