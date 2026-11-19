@@ -61,6 +61,7 @@ const openVisit = () => DOC.vs.find((v) => !v.out);
 const lineDisc = (l, lp) => (lp > 0 && l.p < lp ? Math.round((1 - l.p / lp) * 1000) / 10 : 0); // % off the list price
 const dec = (v) => { const n = parseFloat(String(v ?? "").replace(/\s/g, "").replace(",", ".")); return isFinite(n) ? n : 0; }; // accepts 5,51 and 5.51
 const DEC = 'type="text" inputmode="decimal" autocomplete="off"';
+const sellAt = (l) => { const it = catItem(l.id); return +l.lp > 0 ? +l.lp : it ? it.p || 0 : 0; }; // selling price on the line, the catalogue one unless changed
 const freeOf = (l) => (l.fq || 0) + (l.fr || 0);
 const offerTotal = (o) => { const sub = o.lines.reduce((s, l) => s + l.q * l.p, 0), b = sub - Math.min(o.disc || 0, sub) + (o.ship || 0); return b + b * (o.vat || 0) / 100; };
 const setDoc = (d) => { if (d) DOC = d; };
@@ -344,12 +345,12 @@ function editOffer(id, clId) {
 ${hits.length ? `<div class="pick">${hits.map((i) => `<button data-add="${esc(i.id)}">${i.im ? `<img src="${esc(i.im)}" alt="" loading="lazy">` : '<span class="ph"></span>'}<span><b>${esc(i.n)}</b><span>${esc(i.id)} · ${i.p ? usd(std(i)) : "no price"}${i.s === 0 ? " · out of stock" : ""}${i.ob && i.of ? ` · offer ${i.ob}+${i.of}` : ""}</span></span></button>`).join("")}</div>` : ql ? '<p class="mu sm">No product matches.</p>' : ""}
 ${can("prices") ? `<button class="btn" data-custom style="margin-top:8px">+ Line not in the catalogue</button>` : ""}</div>
 <div class="card">${O.lines.length ? O.lines.map((l, k) => {
-      const it = catItem(l.id), sp = it ? std(it) : null, lp = it ? it.p || 0 : 0, ld = lineDisc(l, lp);
+      const it = catItem(l.id), sp = it ? std(it) : null, lp = sellAt(l), ld = lineDisc(l, lp);
       const fq = it && it.ob && !it.xo ? Math.floor(l.q / it.ob) * it.of : 0, out = l.q + fq + (+l.fr || 0), short = it && it.s !== null && it.s !== undefined && out > it.s;
       const P = can("prices") ? "" : " disabled";
       return `<div class="ln" data-k="${k}"><div class="nm">${it || !can("prices") ? esc(l.n) : `<input data-l="n" value="${esc(l.n)}" placeholder="Description" maxlength="160">`}<small>${esc(l.id || "custom")}${sp !== null && sp !== lp ? ` · client price ${usd(sp)}` : ""}${it && it.s !== null && it.s !== undefined ? ` · stock ${it.s}` : ""}${fq ? ` · <b>+${fq} free (offer ${it.ob}+${it.of})</b>` : ""}</small></div><div class="r num"><b>${usd(l.q * (l.p || 0))}</b></div>
-<div class="ctl"><label>Qty<input type="number" inputmode="numeric" min="1" step="1" data-l="q" value="${l.q}"></label><label>Price $<input ${DEC} data-l="lp" value="${it ? lp.toFixed(2) : ""}" placeholder="—" disabled title="Selling price"></label><label>Disc %<input ${DEC} data-l="ld" value="${ld || ""}" placeholder="0"${it && lp ? P : " disabled"}></label><label>Net $<input ${DEC} data-l="p" value="${l.p ? (+l.p).toFixed(2) : ""}" placeholder="0.00"${P}></label><label>Free<input type="number" inputmode="numeric" min="0" step="1" data-l="fr" value="${+l.fr || ""}" placeholder="0"${P}></label><button class="x" data-rm aria-label="Remove">✕</button></div>
-${short ? `<div class="warnbox" style="margin-top:6px">⚠ ${out} units go out (${l.q} sold + ${out - l.q} free) but only ${it.s} in stock.</div>` : ""}</div>`; }).join("") : '<p class="mu sm" style="margin:0">No products yet. Search above to add.</p>'}${O.lines.length ? '<p class="mu sm" style="margin:8px 0 0">Price is the selling price. Disc % comes off it and gives the Net price you charge; change either one. Free items are given on top and come out of stock with the order.</p>' : ""}</div>
+<div class="ctl"><label>Qty<input type="number" inputmode="numeric" min="1" step="1" data-l="q" value="${l.q}"></label><label>Price $<input ${DEC} data-l="lp" value="${lp ? lp.toFixed(2) : ""}" placeholder="0.00"${P}></label><label>Disc %<input ${DEC} data-l="ld" value="${ld || ""}" placeholder="0"${P}></label><label>Net $<input ${DEC} data-l="p" value="${l.p ? (+l.p).toFixed(2) : ""}" placeholder="0.00"${P}></label><label>Free<input type="number" inputmode="numeric" min="0" step="1" data-l="fr" value="${+l.fr || ""}" placeholder="0"${P}></label><button class="x" data-rm aria-label="Remove">✕</button></div>
+${short ? `<div class="warnbox" style="margin-top:6px">⚠ ${out} units go out (${l.q} sold + ${out - l.q} free) but only ${it.s} in stock.</div>` : ""}</div>`; }).join("") : '<p class="mu sm" style="margin:0">No products yet. Search above to add.</p>'}${O.lines.length ? '<p class="mu sm" style="margin:8px 0 0">Price is the selling price. Disc % comes off it and gives the Net price you charge. You can change any of the three. Free items are given on top and come out of stock with the order.</p>' : ""}</div>
 <div class="card"><div class="g2">${can("prices") ? `<label>Extra discount $<input ${DEC} data-o="disc" value="${O.disc || ""}" placeholder="0"></label>` : ""}<label>Delivery $<input ${DEC} data-o="ship" value="${O.ship || ""}" placeholder="0"></label><label>VAT %<input ${DEC} data-o="vat" value="${O.vat || ""}" placeholder="0"></label><label>Valid for (days)<input type="number" min="1" max="365" data-o="valid" value="${O.valid || 7}"></label></div>
 <label>Note for the client<textarea data-o="note" rows="2" maxlength="600" placeholder="e.g. Delivery within 2 working days">${esc(O.note)}</textarea></label>
 <div class="tots num"><div><span>Subtotal</span><b>${usd(sub)}</b></div>${disc ? `<div><span>Discount</span><b>−${usd(disc)}</b></div>` : ""}${+O.ship ? `<div><span>Delivery</span><b>${usd(+O.ship)}</b></div>` : ""}${+O.vat ? `<div><span>VAT ${+O.vat}%</span><b>${usd(tb * (+O.vat) / 100)}</b></div>` : ""}<div class="g"><span>Total</span><b>${usd(tot)}</b></div>${extra ? `<div class="sm mu"><span>Below standard prices</span><span>${extra}%</span></div>` : ""}</div>
@@ -367,7 +368,8 @@ ${over ? `<div class="warnbox">⚠ This is ${extra}% below standard prices; your
         if (k === "n") l.n = t.value;
         else if (k === "q") l.q = Math.max(1, Math.floor(+t.value) || 1);
         else if (k === "fr") l.fr = Math.max(0, Math.floor(+t.value) || 0);
-        else if (k === "ld") { const d = Math.min(100, Math.max(0, dec(t.value))); if (it && it.p) l.p = Math.round(it.p * (1 - d / 100) * 100) / 100; }
+        else if (k === "lp") { const d = lineDisc(l, sellAt(l)), v = Math.round(Math.max(0, dec(t.value)) * 100) / 100; l.lp = v; l.p = Math.round(v * (1 - d / 100) * 100) / 100; }
+        else if (k === "ld") { const d = Math.min(100, Math.max(0, dec(t.value))), lp = sellAt(l); if (lp) l.p = Math.round(lp * (1 - d / 100) * 100) / 100; }
         else l.p = Math.round(Math.max(0, dec(t.value)) * 100) / 100;
         s.draw();
       }
