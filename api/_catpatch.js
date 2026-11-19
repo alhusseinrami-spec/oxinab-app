@@ -1,11 +1,11 @@
 // Prices, discounts, offers and photos from the supplier catalogues (Burnshield 2026, Biosynex January 2026,
-// Tynor 2025 price list).
+// Tynor 2025 price list, Tynor product sheet).
 // Applied once to the live catalogue when it loads (see applyPatch in _lib.js), and only to what is empty:
 // a photo goes on a product that has none, and the price, discount and offer only on a product with no price yet.
 // Products listed with "add" are created if the catalogue doesn't have them. Stock is never touched.
 // Raise v to apply a new list once more.
 export default {
-v: 4,
+v: 5,
 // Placeholder stock until the real stock is uploaded: once (when pv goes past 2), every product with no stock
 // or 0 gets this quantity, so all products can be ordered. A stock upload replaces it as usual.
 fillStock: { v: 3, s: 20 },
@@ -242,5 +242,11 @@ items: [
   {"id": "L38", "p": 2, "im": "/img/ty-l38.jpg", "add": {"n": "Tynor rubber tip for tripod stick (L-32), 15 mm", "a": "قاعدة مطاطية لعصا الثلاث أرجل (L-32)‏ 15 مم من Tynor", "cat": "Mobility & rehabilitation"}, "src": "Tynor 2025 (Cure price list)"},
   {"id": "L39", "p": 1.5, "im": "/img/ty-l39.jpg", "add": {"n": "Tynor rubber tip for commode chair (L-35), 25 mm", "a": "قاعدة مطاطية لكرسي الحمّام (L-35)‏ 25 مم من Tynor", "cat": "Mobility & rehabilitation"}, "src": "Tynor 2025 (Cure price list)"},
   {"id": "L40", "p": 1.5, "im": "/img/ty-l40.jpg", "add": {"n": "Tynor rubber tip for Quadra stick (L-36), 13 mm", "a": "قاعدة مطاطية لعصا Quadra‏ (L-36)‏ 13 مم من Tynor", "cat": "Mobility & rehabilitation"}, "src": "Tynor 2025 (Cure price list)"},
+  {"id": "A13S/UN", "im": "/img/ty-a13lun.jpg", "src": "Tynor product sheet"},
+  {"id": "A13S/SPL", "im": "/img/ty-a13lun.jpg", "src": "Tynor product sheet"},
+  {"id": "191", "im": "/img/ty-i91.jpg", "src": "Tynor product sheet"},
+  {"id": "192", "im": "/img/ty-i92.jpg", "src": "Tynor product sheet"},
+  {"id": "cm", "im": "/img/ty-l35.jpg", "src": "Tynor product sheet"},
+  {"id": "10DISERTRA", "im": "/img/ty-g25.jpg", "src": "Tynor product sheet"},
 ],
 };
