@@ -5,7 +5,10 @@
 // Products listed with "add" are created if the catalogue doesn't have them. Stock is never touched.
 // Raise v to apply a new list once more.
 export default {
-v: 2,
+v: 3,
+// Placeholder stock until the real stock is uploaded: once (when pv goes past 2), every product with no stock
+// or 0 gets this quantity, so all products can be ordered. A stock upload replaces it as usual.
+fillStock: { v: 3, s: 20 },
 items: [
   {"id": "100109", "p": 15, "dc": 25, "src": "Burnshield 2026"},
   {"id": "550004", "p": 1.08, "dc": 25, "ob": 20, "of": 10, "src": "Burnshield 2026"},

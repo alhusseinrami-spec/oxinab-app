@@ -157,6 +157,8 @@ export function applyPatch(data) {
         if (!it.dc && !it.ob) { if (x.dc) it.dc = x.dc; if (x.ob && x.of) { it.ob = x.ob; it.of = x.of; } }
       }
     }
+    const fs = PATCH.fillStock;
+    if (fs && (data.pv || 0) < fs.v) for (const i of data.items) if (!(i.s > 0)) i.s = fs.s;
     data.pv = PATCH.v;
   }
   // The client always chooses the discount or the free goods, never both.
