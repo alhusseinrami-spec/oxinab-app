@@ -1,5 +1,5 @@
 /* Oxinab service worker: makes the catalogue installable and usable offline, and shows offer notifications. */
-const V = "oxinab-v20";
+const V = "oxinab-v21";
 const SHELL = ["/", "/styles.css", "/app.js", "/compare.js", "/logo.jpg", "/catalog.json", "/manifest.webmanifest", "/icons/icon-192.png"];
 
 self.addEventListener("install", (e) => {
