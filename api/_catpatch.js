@@ -1,11 +1,11 @@
 // Prices, discounts, offers and photos from the supplier catalogues (Burnshield 2026, Biosynex January 2026,
-// Tynor 2025 price list, Tynor product sheet, Relaxsan sheet, Medora Care photos).
+// Tynor 2025 price list, Tynor product sheet, Relaxsan sheet, Medora Care photos, Oxinab stock photo).
 // Applied once to the live catalogue when it loads (see applyPatch in _lib.js), and only to what is empty:
 // a photo goes on a product that has none, and the price, discount and offer only on a product with no price yet.
 // Products listed with "add" are created if the catalogue doesn't have them. Stock is never touched.
 // Raise v to apply a new list once more.
 export default {
-v: 7,
+v: 8,
 // Placeholder stock until the real stock is uploaded: once (when pv goes past 2), every product with no stock
 // or 0 gets this quantity, so all products can be ordered. A stock upload replaces it as usual.
 fillStock: { v: 3, s: 20 },
@@ -261,5 +261,6 @@ items: [
   {"id": "20.0003", "im": "/img/md-exam-roll-paper.jpg", "src": "Medora Care photos"},
   {"id": "20.0002", "im": "/img/md-exam-roll-paper.jpg", "src": "Medora Care photos"},
   {"id": "3MCS3LS", "im": "/img/md-tripod-cane.jpg", "src": "Medora Care photos"},
+  {"id": "OXYSPRI", "im": "/img/ox-oxysprint.jpg", "src": "Oxinab stock photo"},
 ],
 };
