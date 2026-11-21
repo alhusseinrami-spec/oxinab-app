@@ -148,7 +148,8 @@ export function applyPatch(data) {
       if (!it) {
         if (!x.add || !Array.isArray(data.cats)) continue;
         const k = data.cats.findIndex((c) => c.n.toLowerCase() === x.add.cat.toLowerCase());
-        it = { id: x.id, k: k < 0 ? 0 : k, n: x.add.n, a: x.add.a || "", d: "", ad: "", p: 0, s: null, off: 0, im: "" };
+        // A new product starts with the placeholder stock, so it can be ordered until the real stock is uploaded.
+        it = { id: x.id, k: k < 0 ? 0 : k, n: x.add.n, a: x.add.a || "", d: "", ad: "", p: 0, s: PATCH.fillStock ? PATCH.fillStock.s : null, off: 0, im: "" };
         data.items.push(it); byId.set(x.id, it);
       }
       if (x.im && (!it.im || (x.imOld && it.im === x.imOld))) it.im = x.im;

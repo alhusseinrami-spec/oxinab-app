@@ -1,11 +1,13 @@
 // Prices, discounts, offers and photos from the supplier catalogues (Burnshield 2026, Biosynex January 2026,
-// Tynor 2025 price list, Tynor product sheet, Relaxsan sheet, Medora Care photos, Oxinab stock photo).
+// Tynor 2025 price list, Tynor product sheet, Relaxsan sheet, Medora Care photos, Oxinab stock photo,
+// Oxinab medical & lab supplies price list).
 // Applied once to the live catalogue when it loads (see applyPatch in _lib.js), and only to what is empty:
 // a photo goes on a product that has none, and the price, discount and offer only on a product with no price yet.
-// Products listed with "add" are created if the catalogue doesn't have them. Stock is never touched.
+// Products listed with "add" are created if the catalogue doesn't have them, with the placeholder stock below.
+// The stock of existing products is never touched.
 // Raise v to apply a new list once more.
 export default {
-v: 8,
+v: 9,
 // Placeholder stock until the real stock is uploaded: once (when pv goes past 2), every product with no stock
 // or 0 gets this quantity, so all products can be ordered. A stock upload replaces it as usual.
 fillStock: { v: 3, s: 20 },
@@ -262,5 +264,19 @@ items: [
   {"id": "20.0002", "im": "/img/md-exam-roll-paper.jpg", "src": "Medora Care photos"},
   {"id": "3MCS3LS", "im": "/img/md-tripod-cane.jpg", "src": "Medora Care photos"},
   {"id": "OXYSPRI", "im": "/img/ox-oxysprint.jpg", "src": "Oxinab stock photo"},
+  {"id": "MLS-BEDPAN", "p": 1.76, "im": "/img/mls-bed-pan.jpg", "add": {"n": "Bed pan", "a": "وعاء تبرّز للمرضى (بيدبان)", "cat": "Clinic & exam room"}, "src": "Oxinab medical & lab supplies price list (Nov 2026)"},
+  {"id": "MLS-SITZBATH", "p": 1.95, "im": "/img/mls-sitz-bath.jpg", "add": {"n": "Sitz bath / vaginal douche", "a": "حوض جلوس / دش مهبلي", "cat": "Clinic & exam room"}, "src": "Oxinab medical & lab supplies price list (Nov 2026)"},
+  {"id": "MLS-KIDNEYTRAY", "p": 0.29, "im": "/img/mls-kidney-tray.jpg", "add": {"n": "Kidney tray", "a": "صحن كلوي (Kidney tray)", "cat": "Clinic & exam room"}, "src": "Oxinab medical & lab supplies price list (Nov 2026)"},
+  {"id": "MLS-HANGER", "p": 0.29, "im": "/img/mls-hanger.jpg", "add": {"n": "Urine bag hanger", "a": "علّاقة كيس البول", "cat": "Clinic & exam room"}, "src": "Oxinab medical & lab supplies price list (Nov 2026)"},
+  {"id": "MLS-URINAL-M", "p": 0.72, "im": "/img/mls-male-urinal.jpg", "add": {"n": "Male urinal", "a": "مبولة للرجال", "cat": "Clinic & exam room"}, "src": "Oxinab medical & lab supplies price list (Nov 2026)"},
+  {"id": "MLS-SHARPS-1.8L", "p": 1.43, "im": "/img/mls-sharps-1-8l.jpg", "add": {"n": "Sharps container 1.8 L", "a": "حاوية أدوات حادة 1.8 ل", "cat": "Clinic & exam room"}, "src": "Oxinab medical & lab supplies price list (Nov 2026)"},
+  {"id": "06.0226", "p": 1.76, "im": "/img/mls-sharps-3l.jpg", "src": "Oxinab medical & lab supplies price list (Nov 2026)"},
+  {"id": "MLS-SHARPS-5L", "p": 2.15, "im": "/img/mls-sharps-5l.jpg", "add": {"n": "Sharps container 5 L", "a": "حاوية أدوات حادة 5 ل", "cat": "Clinic & exam room"}, "src": "Oxinab medical & lab supplies price list (Nov 2026)"},
+  {"id": "MLS-SHARPS-10L", "p": 2.6, "im": "/img/mls-sharps-10l.jpg", "add": {"n": "Sharps container 10 L", "a": "حاوية أدوات حادة 10 ل", "cat": "Clinic & exam room"}, "src": "Oxinab medical & lab supplies price list (Nov 2026)"},
+  {"id": "MLS-STOOLCUP60", "p": 32.5, "im": "/img/mls-stool-cup.jpg", "add": {"n": "Stool cup 60 ml, carton", "a": "علبة عيّنة براز 60 مل، كرتونة", "cat": "Diagnostics"}, "src": "Oxinab medical & lab supplies price list (Nov 2026)"},
+  {"id": "MLS-URINECUP60", "p": 35.1, "im": "/img/mls-urine-cup.jpg", "add": {"n": "Urine cup 60 ml, carton", "a": "علبة عيّنة بول 60 مل، كرتونة", "cat": "Diagnostics"}, "src": "Oxinab medical & lab supplies price list (Nov 2026)"},
+  {"id": "MLS-PETRI15", "p": 84.5, "im": "/img/mls-petri-dish.jpg", "add": {"n": "Petri dish 15 cm, carton", "a": "طبق بتري 15 سم، كرتونة", "cat": "Diagnostics"}, "src": "Oxinab medical & lab supplies price list (Nov 2026)"},
+  {"id": "MLS-PETRISQ", "p": 91.0, "im": "/img/mls-petri-square.jpg", "add": {"n": "Square petri dish, carton", "a": "طبق بتري مربّع، كرتونة", "cat": "Diagnostics"}, "src": "Oxinab medical & lab supplies price list (Nov 2026)"},
+  {"id": "MLS-ROLL72", "p": 3.9, "im": "/img/mls-paper-roll.jpg", "add": {"n": "Examination roll paper, 72 m (paper, not tissue)", "a": "ورق فحص رول 72 م (ورق وليس محارم)", "cat": "Clinic & exam room"}, "src": "Oxinab medical & lab supplies price list (Nov 2026)"},
 ],
 };
